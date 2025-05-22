@@ -43,3 +43,6 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+
+# Claude Code settings
+.claude/
