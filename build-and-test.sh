@@ -28,7 +28,8 @@ echo -e "${BLUE}📦 Installing Go dependencies...${NC}"
 go mod tidy
 
 echo -e "${BLUE}🔨 Building binary...${NC}"
-go build -o codekeeper cmd/codekeeper/main.go
+VERSION=${VERSION:-"dev"}
+go build -ldflags "-X main.version=$VERSION" -o codekeeper cmd/codekeeper/main.go
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Build successful!${NC}"

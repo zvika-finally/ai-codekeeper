@@ -7,7 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/tycoonlabs/ai-codekeeper/internal/generator"
+	"github.com/zvika-finally/ai-codekeeper/internal/generator"
 )
 
 func NewInitCmd() *cobra.Command {

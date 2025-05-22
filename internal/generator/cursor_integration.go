@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tycoonlabs/ai-codekeeper/internal/cursor"
+	"github.com/zvika-finally/ai-codekeeper/internal/cursor"
 )
 
 // generateCursorIntegration adds Cursor IDE integration to generated projects

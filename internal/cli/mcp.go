@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/tycoonlabs/ai-codekeeper/internal/cursor"
+	"github.com/zvika-finally/ai-codekeeper/internal/cursor"
 )
 
 // NewMCPServerCmd creates the mcp-server command

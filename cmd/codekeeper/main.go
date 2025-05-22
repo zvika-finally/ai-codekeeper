@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/tycoonlabs/ai-codekeeper/internal/cli"
+	"github.com/zvika-finally/ai-codekeeper/internal/cli"
 )
 
 var version = "dev" // Set during build

@@ -5,7 +5,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/tycoonlabs/ai-codekeeper/internal/cursor"
+	"github.com/zvika-finally/ai-codekeeper/internal/cursor"
 )
 
 func NewCursorCmd() *cobra.Command {

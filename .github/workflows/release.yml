@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Extract version
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Build binaries
+      run: |
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" -o codekeeper-linux-amd64 cmd/codekeeper/main.go
+        
+        # Linux ARM64
+        GOOS=linux GOARCH=arm64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" -o codekeeper-linux-arm64 cmd/codekeeper/main.go
+        
+        # macOS AMD64 (Intel)
+        GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" -o codekeeper-darwin-amd64 cmd/codekeeper/main.go
+        
+        # macOS ARM64 (Apple Silicon)
+        GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" -o codekeeper-darwin-arm64 cmd/codekeeper/main.go
+        
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" -o codekeeper-windows-amd64.exe cmd/codekeeper/main.go
+        
+        # Windows ARM64
+        GOOS=windows GOARCH=arm64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" -o codekeeper-windows-arm64.exe cmd/codekeeper/main.go
+
+    - name: Create checksums
+      run: |
+        sha256sum codekeeper-* > checksums.txt
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          codekeeper-linux-amd64
+          codekeeper-linux-arm64
+          codekeeper-darwin-amd64
+          codekeeper-darwin-arm64
+          codekeeper-windows-amd64.exe
+          codekeeper-windows-arm64.exe
+          checksums.txt
+        generate_release_notes: true
+        draft: false
+        prerelease: false

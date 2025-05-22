@@ -1,4 +1,4 @@
-module github.com/tycoonlabs/ai-codekeeper
+module github.com/zvika-finally/ai-codekeeper
 
 go 1.21
 

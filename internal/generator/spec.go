@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	
-	"github.com/tycoonlabs/ai-codekeeper/internal/models"
+	"github.com/zvika-finally/ai-codekeeper/internal/models"
 )
 
 // ProjectSpec holds all user requirements for project generation

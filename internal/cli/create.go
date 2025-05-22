@@ -6,8 +6,8 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/tycoonlabs/ai-codekeeper/internal/generator"
-	"github.com/tycoonlabs/ai-codekeeper/internal/models"
+	"github.com/zvika-finally/ai-codekeeper/internal/generator"
+	"github.com/zvika-finally/ai-codekeeper/internal/models"
 )
 
 func NewCreateCmd() *cobra.Command {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/tycoonlabs/ai-codekeeper/internal/cursor"
+	"github.com/zvika-finally/ai-codekeeper/internal/cursor"
 )
 
 // NewMCPEcosystemCmd creates the mcp-ecosystem command
