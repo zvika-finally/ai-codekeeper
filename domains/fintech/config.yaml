@@ -1,0 +1,176 @@
+name: fintech
+version: "1.0.0"
+description: "Financial Technology Domain Expertise"
+
+# Domain-specific entities and their descriptions
+entities:
+  account: "Financial account with balance tracking and transaction history"
+  transaction: "Financial transaction with double-entry bookkeeping"
+  ledger: "Double-entry accounting system for financial records"
+  card: "Payment card with security controls and spending limits"
+  wallet: "Digital wallet for storing funds and payment methods"
+  payment: "Payment processing with fraud detection and compliance"
+  user: "User with KYC/AML verification and risk profiling"
+  merchant: "Merchant account with settlement and fee management"
+  loan: "Loan product with underwriting and servicing capabilities"
+  investment: "Investment account with portfolio tracking"
+
+# Technology preferences based on fintech requirements
+tech_preferences:
+  high_security:
+    - "Go"
+    - "Rust" 
+    - "Java"
+    - "Python"
+  real_time_processing:
+    - "Node.js"
+    - "Go"
+    - "Rust"
+  compliance_friendly:
+    - "PostgreSQL"
+    - "Oracle"
+    - "SQL Server"
+  audit_logging:
+    - "PostgreSQL"
+    - "MongoDB"
+    - "Elasticsearch"
+  payment_processing:
+    - "Node.js"
+    - "Python"
+    - "Go"
+
+# Compliance requirements
+compliance:
+  - "SOC2"
+  - "PCI-DSS"
+  - "GDPR"
+  - "KYC/AML"
+  - "Open Banking (PSD2)"
+  - "SOX"
+  - "FFIEC"
+
+# Security patterns and requirements
+security_patterns:
+  - "Zero Trust Architecture"
+  - "End-to-End Encryption"
+  - "Multi-Factor Authentication"
+  - "Role-Based Access Control"
+  - "Audit Logging"
+  - "Data Classification"
+  - "Secure API Design"
+  - "Fraud Detection"
+  - "Risk Management"
+
+# Recommended integrations for fintech applications
+recommended_integrations:
+  payment_processors:
+    - "Stripe"
+    - "Modern Treasury"
+    - "Marqeta"
+    - "Adyen"
+  banking_apis:
+    - "Plaid"
+    - "Teller"
+    - "Rutter"
+    - "Yodlee"
+  identity_verification:
+    - "Jumio"
+    - "Onfido"
+    - "Socure"
+  fraud_prevention:
+    - "Sift"
+    - "Forter"
+    - "Kount"
+  compliance:
+    - "Alloy"
+    - "ComplyAdvantage"
+    - "Chainalysis"
+
+# Guard rails specific to fintech development
+guard_rails:
+  - "decimal_arithmetic" # Use Decimal types for financial calculations
+  - "audit_trails" # Log all financial operations
+  - "encryption_at_rest" # Encrypt sensitive data
+  - "secure_communication" # HTTPS/TLS for all communications
+  - "input_validation" # Validate all financial inputs
+  - "idempotency" # Ensure operations can be safely retried
+  - "rate_limiting" # Protect against abuse
+  - "monitoring" # Monitor all financial operations
+  - "backup_strategy" # Regular backups with encryption
+  - "disaster_recovery" # DR plan for financial systems
+
+# Development best practices
+best_practices:
+  data_handling:
+    - "Use Decimal or BigNumber for monetary amounts"
+    - "Never use floating point for financial calculations"
+    - "Always validate monetary inputs"
+    - "Implement proper rounding strategies"
+  
+  security:
+    - "Encrypt PII and financial data at rest"
+    - "Use strong authentication (MFA where possible)"
+    - "Implement proper session management"
+    - "Regular security audits and penetration testing"
+  
+  compliance:
+    - "Maintain audit logs for all transactions"
+    - "Implement data retention policies"
+    - "Ensure GDPR compliance for EU users"
+    - "Follow PCI-DSS for card data"
+  
+  operations:
+    - "Implement circuit breakers for external services"
+    - "Use idempotency keys for financial operations"
+    - "Monitor transaction success rates"
+    - "Set up alerts for unusual patterns"
+
+# Environment variables specific to fintech applications
+environment_variables:
+  development:
+    ENCRYPTION_KEY: "dev-key-change-in-production"
+    AUDIT_LOG_LEVEL: "DEBUG"
+    FRAUD_DETECTION_MODE: "LEARNING"
+    COMPLIANCE_MODE: "RELAXED"
+  
+  production:
+    ENCRYPTION_KEY: "{{ from_secrets }}"
+    AUDIT_LOG_LEVEL: "INFO" 
+    FRAUD_DETECTION_MODE: "STRICT"
+    COMPLIANCE_MODE: "STRICT"
+    BACKUP_SCHEDULE: "0 2 * * *"
+    MONITORING_ENABLED: "true"
+
+# Code generation templates specific to fintech
+code_templates:
+  transaction_model: |
+    // Financial transaction with audit trail
+    interface Transaction {
+      id: string;
+      amount: Decimal;
+      currency: string;
+      debitAccount: string;
+      creditAccount: string;
+      description: string;
+      reference: string;
+      status: 'pending' | 'completed' | 'failed' | 'cancelled';
+      metadata: Record<string, any>;
+      createdAt: Date;
+      updatedAt: Date;
+      auditTrail: AuditEntry[];
+    }
+  
+  payment_service: |
+    // Payment processing service with fraud detection
+    class PaymentService {
+      async processPayment(payment: PaymentRequest): Promise<PaymentResult> {
+        // Validate input
+        await this.validatePayment(payment);
+        
+        // Fraud check
+        await this.fraudCheck(payment);
+        
+        // Process with idempotency
+        return this.executePayment(payment);
+      }
+    }
