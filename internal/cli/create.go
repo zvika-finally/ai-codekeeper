@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/fatih/color"
@@ -71,9 +72,19 @@ func runCreate(cmd *cobra.Command, args []string) error {
 
 	// Generate the project
 	color.Green("📁 Generating project structure...")
-	gen := generator.New(spec)
-	if err := gen.Generate(); err != nil {
-		return fmt.Errorf("failed to generate project: %w", err)
+	
+	// Test modular generator temporarily
+	if os.Getenv("USE_MODULAR") == "true" {
+		color.Cyan("🧪 Using new modular generator...")
+		gen := generator.NewModular(spec)
+		if err := gen.Generate(); err != nil {
+			return fmt.Errorf("failed to generate project with modular generator: %w", err)
+		}
+	} else {
+		gen := generator.New(spec)
+		if err := gen.Generate(); err != nil {
+			return fmt.Errorf("failed to generate project: %w", err)
+		}
 	}
 
 	// Success message
