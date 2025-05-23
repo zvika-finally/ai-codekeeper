@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/fatih/color"
@@ -52,39 +51,45 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	// Initialize project specification
 	spec := &generator.ProjectSpec{}
 
-	// Get domain preference early to inform other questions
-	domain, _ := cmd.Flags().GetString("domain")
-	if domain == "" {
-		domain = promptForDomain()
-	}
-	spec.Domain = domain
+	// Check if quick mode is enabled
+	quick, _ := cmd.Flags().GetBool("quick")
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	
+	if quick {
+		// Use sensible defaults for rapid prototyping
+		if err := applyQuickDefaults(spec, projectName, cmd); err != nil {
+			return fmt.Errorf("failed to apply quick defaults: %w", err)
+		}
+		color.Yellow("⚡ Quick mode: Using sensible defaults for rapid prototyping")
+	} else if interactive {
+		// Get domain preference early to inform other questions
+		domain, _ := cmd.Flags().GetString("domain")
+		if domain == "" {
+			domain = promptForDomain()
+		}
+		spec.Domain = domain
 
-	// Ask the 8 core questions from AI_MASTER_PROMPT.md
-	if err := askCoreQuestions(spec, projectName); err != nil {
-		return fmt.Errorf("failed to gather requirements: %w", err)
-	}
+		// Ask the 8 core questions from AI_MASTER_PROMPT.md
+		if err := askCoreQuestions(spec, projectName); err != nil {
+			return fmt.Errorf("failed to gather requirements: %w", err)
+		}
 
-	// Get AI model recommendations for tech stack
-	color.Yellow("🧠 Analyzing requirements and selecting optimal tech stack...")
-	if err := getTechStackRecommendations(spec); err != nil {
-		return fmt.Errorf("failed to get tech recommendations: %w", err)
+		// Get AI model recommendations for tech stack
+		color.Yellow("🧠 Analyzing requirements and selecting optimal tech stack...")
+		if err := getTechStackRecommendations(spec); err != nil {
+			return fmt.Errorf("failed to get tech recommendations: %w", err)
+		}
+	} else {
+		return fmt.Errorf("either --quick or --interactive must be specified")
 	}
 
 	// Generate the project
 	color.Green("📁 Generating project structure...")
 	
-	// Test modular generator temporarily
-	if os.Getenv("USE_MODULAR") == "true" {
-		color.Cyan("🧪 Using new modular generator...")
-		gen := generator.NewModular(spec)
-		if err := gen.Generate(); err != nil {
-			return fmt.Errorf("failed to generate project with modular generator: %w", err)
-		}
-	} else {
-		gen := generator.New(spec)
-		if err := gen.Generate(); err != nil {
-			return fmt.Errorf("failed to generate project: %w", err)
-		}
+	// Use new modular generator by default
+	gen := generator.NewModular(spec)
+	if err := gen.Generate(); err != nil {
+		return fmt.Errorf("failed to generate project: %w", err)
 	}
 
 	// Success message
@@ -100,6 +105,69 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  docker compose up   # Start development environment\n")
 	}
 
+	return nil
+}
+
+func applyQuickDefaults(spec *generator.ProjectSpec, projectName string, cmd *cobra.Command) error {
+	// Apply sensible defaults for rapid prototyping
+	if projectName == "" {
+		projectName = "my-app"
+	}
+	
+	spec.Name = projectName
+	spec.Description = "A modern web application built with AI CodeKeeper"
+	spec.CoreEntity = "Item"
+	spec.Backend = "javascript" // Node.js/Express for quick setup
+	spec.Databases = []string{"postgresql"}
+	spec.APIStyle = "rest"
+	spec.UserRoles = "user, admin"
+	spec.DevEnvironment = "docker"
+	
+	// Get domain from flag or default to generic
+	domain, _ := cmd.Flags().GetString("domain")
+	if domain == "" {
+		domain = "generic"
+	}
+	spec.Domain = domain
+	
+	// Load and apply domain configuration
+	domainConfig, err := generator.LoadDomainConfig(domain)
+	if err != nil {
+		fmt.Printf("Warning: Could not load domain config for %s: %v\n", domain, err)
+	} else {
+		// Apply domain-specific enhancements
+		domainConfig.EnhanceProjectSpec(spec)
+		
+		// Use domain-specific core entity if available
+		if domainEntity := domainConfig.GetDomainSpecificEntity(); domainEntity != "" {
+			spec.CoreEntity = domainEntity
+		}
+		
+		// Set domain-specific description
+		if domainConfig.Description != "" {
+			spec.Description = fmt.Sprintf("A %s application built with AI CodeKeeper", domainConfig.Description)
+		}
+	}
+	
+	// Legacy domain-specific defaults (kept as fallback)
+	switch domain {
+	case "fintech":
+		if spec.CoreEntity == "Item" {
+			spec.CoreEntity = "Transaction"
+		}
+		spec.UserRoles = "customer, admin, analyst"
+	case "ecommerce":
+		if spec.CoreEntity == "Item" {
+			spec.CoreEntity = "Product"
+		}
+		spec.UserRoles = "customer, seller, admin"
+	case "healthcare":
+		if spec.CoreEntity == "Item" {
+			spec.CoreEntity = "Patient"
+		}
+		spec.UserRoles = "patient, doctor, admin"
+	}
+	
 	return nil
 }
 
