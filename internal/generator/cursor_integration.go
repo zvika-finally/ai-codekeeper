@@ -83,81 +83,25 @@ func (ci *CursorIntegration) generateCursorSettings(files map[string]string) {
 	files[".cursor/settings.json"] = string(settingsJSON)
 }
 
-// generateCursorRules creates Cursor coding rules
+// generateCursorRules creates Cursor coding rules using proper .mdc format
 func (ci *CursorIntegration) generateCursorRules(files map[string]string) {
-	rules := `# Cursor Coding Rules for ` + ci.spec.Name + `
-
-## Project Context
-- **Domain**: ` + ci.spec.Domain + `
-- **Core Entity**: ` + ci.spec.CoreEntity + `
-- **Backend**: ` + ci.spec.Backend + `
-- **API Style**: ` + ci.spec.APIStyle + `
-
-## Coding Standards
-
-### General Rules
-1. Follow the architectural patterns defined in docs/ARCHITECTURE.md
-2. Implement security-first development practices
-3. Write clean, self-documenting code with minimal comments
-4. Use TypeScript strict mode for frontend development
-5. Follow the established project structure in docs/frontend/PROJECT_STRUCTURE.md
-
-### Backend Rules (` + ci.spec.Backend + `)
-` + ci.getBackendRules() + `
-
-### Frontend Rules (React TypeScript)
-1. Use functional components with hooks
-2. Implement proper TypeScript interfaces for all props
-3. Follow component naming conventions (PascalCase)
-4. Use custom hooks for complex logic
-5. Implement proper error boundaries and loading states
-
-### Domain-Specific Rules (` + ci.spec.Domain + `)
-` + ci.getDomainSpecificRules() + `
-
-### Security Rules
-1. Never log sensitive information (passwords, tokens, PII)
-2. Validate all user inputs at boundaries
-3. Use environment variables for configuration
-4. Implement proper authentication and authorization
-5. Follow HTTPS-only communication patterns
-
-### Testing Rules
-1. Write tests for business logic and critical paths
-2. Use descriptive test names that explain the scenario
-3. Mock external dependencies appropriately
-4. Maintain test coverage above 80% for core functionality
-
-### Infrastructure Rules
-1. Use Infrastructure as Code (Terraform for AWS)
-2. Implement proper secrets management
-3. Configure monitoring and alerting
-4. Use Docker for consistent environments
-5. Follow 12-factor app principles
-
-## File Naming Conventions
-- Components: PascalCase (UserProfile.tsx)
-- Hooks: camelCase with 'use' prefix (useUserData.ts)
-- Utils: camelCase (formatDate.ts)
-- Constants: UPPER_SNAKE_CASE
-- Config files: kebab-case
-
-## Git Workflow
-- Use conventional commit messages (feat:, fix:, docs:, etc.)
-- Create feature branches for new development
-- Keep commits atomic and focused
-- Write meaningful commit messages
-
-## MCP Integration
-This project includes MCP servers for enhanced AI assistance:
-- Git operations and project structure
-- Domain-specific compliance and patterns
-- Project context and documentation access
-
-Refer to docs/MCP_INTEGRATION.md for usage details.
-`
-
-	files[".cursor/rules.md"] = rules
+	// Main project rules - always applied
+	files[".cursor/rules/project-standards.mdc"] = ci.generateProjectStandardsRule()
+	
+	// Domain-specific rules - auto-attached based on file patterns
+	files[".cursor/rules/domain-rules.mdc"] = ci.generateDomainSpecificRule()
+	
+	// Backend-specific rules - auto-attached for backend files
+	files[".cursor/rules/backend-patterns.mdc"] = ci.generateBackendRule()
+	
+	// Frontend-specific rules - auto-attached for frontend files  
+	files[".cursor/rules/frontend-patterns.mdc"] = ci.generateFrontendRule()
+	
+	// Security rules - always applied
+	files[".cursor/rules/security-standards.mdc"] = ci.generateSecurityRule()
+	
+	// Testing rules - auto-attached for test files
+	files[".cursor/rules/testing-standards.mdc"] = ci.generateTestingRule()
 }
 
 // generateCursorChat creates chat configuration
@@ -482,5 +426,583 @@ func (ci *CursorIntegration) getDomainSpecificWorkflows() string {
 3. Add comprehensive tests
 4. Review security implications
 5. Deploy with proper monitoring`
+	}
+}
+
+// New MDC rule generation methods
+
+func (ci *CursorIntegration) generateProjectStandardsRule() string {
+	return `---
+description: Core project standards and architectural patterns
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# ` + ci.spec.Name + ` - Project Standards
+
+## Project Context
+- **Domain**: ` + ci.spec.Domain + `
+- **Core Entity**: ` + ci.spec.CoreEntity + `
+- **Backend**: ` + ci.spec.Backend + `
+- **API Style**: ` + ci.spec.APIStyle + `
+
+## Architectural Principles
+1. Follow clean architecture patterns defined in docs/ARCHITECTURE.md
+2. Implement domain-driven design principles
+3. Use proper separation of concerns
+4. Follow SOLID principles
+5. Implement proper error handling throughout the application
+
+## Code Quality Standards
+- Write self-documenting code with meaningful names
+- Use TypeScript strict mode for all frontend code
+- Implement proper interfaces and type definitions
+- Follow established project structure in docs/frontend/PROJECT_STRUCTURE.md
+- Maintain consistency with existing codebase patterns
+
+## File Organization
+- Components: PascalCase (UserProfile.tsx)
+- Hooks: camelCase with 'use' prefix (useUserData.ts)
+- Utils: camelCase (formatDate.ts)
+- Constants: UPPER_SNAKE_CASE
+- Config files: kebab-case
+
+## Git Workflow
+- Use conventional commit messages (feat:, fix:, docs:, etc.)
+- Create feature branches for new development
+- Keep commits atomic and focused
+- Write meaningful commit messages that explain the "why"
+
+Generated by AI CodeKeeper v2.1.0 for ` + ci.spec.Domain + ` domain.`
+}
+
+func (ci *CursorIntegration) generateDomainSpecificRule() string {
+	var domainPatterns, domainGuidelines string
+	
+	switch ci.spec.Domain {
+	case "fintech":
+		domainPatterns = `["**/*financial*", "**/*payment*", "**/*transaction*", "**/*money*", "**/*currency*"]`
+		domainGuidelines = `## Fintech Domain Rules
+
+### Critical Requirements
+- **NEVER use floating-point arithmetic for money calculations**
+- Use Decimal.js, big.js, or similar libraries for precise calculations
+- Implement comprehensive audit logging for all financial operations
+- Follow PCI-DSS compliance requirements for payment data
+- Use strong encryption for sensitive financial information
+
+### Compliance Standards
+- PCI-DSS: Payment Card Industry Data Security Standard
+- SOX: Sarbanes-Oxley Act compliance
+- KYC: Know Your Customer procedures
+- AML: Anti-Money Laundering checks
+- GDPR: General Data Protection Regulation
+
+### Implementation Patterns
+- Always validate monetary amounts with proper precision
+- Implement idempotency for financial transactions
+- Use proper authorization for financial operations
+- Implement rate limiting and fraud detection
+- Maintain complete audit trails for regulatory compliance
+
+### Forbidden Patterns
+- Never use JavaScript Number type for monetary calculations
+- Never log sensitive financial information (account numbers, SSNs)
+- Never skip validation for financial transactions
+- Never implement financial logic without audit trails`
+
+	case "healthcare":
+		domainPatterns = `["**/*patient*", "**/*medical*", "**/*health*", "**/*clinical*", "**/*hipaa*"]`
+		domainGuidelines = `## Healthcare Domain Rules
+
+### HIPAA Compliance Requirements
+- Encrypt all PHI (Protected Health Information) at rest and in transit
+- Implement proper access controls with role-based permissions
+- Maintain comprehensive audit logs for all data access
+- Use FHIR standards for healthcare data interoperability
+- Implement proper consent management workflows
+
+### Security Standards
+- Use strong encryption (AES-256) for sensitive medical data
+- Implement proper authentication with MFA when possible
+- Follow principle of least privilege for data access
+- Use secure communication protocols (TLS 1.3+)
+- Implement proper data retention and deletion policies
+
+### Clinical Data Handling
+- Use standardized medical codes (ICD-10, CPT, SNOMED)
+- Implement proper data validation for clinical information
+- Follow HL7 FHIR standards for interoperability
+- Ensure data integrity for clinical decision support
+- Implement proper versioning for medical records
+
+### Forbidden Patterns
+- Never log PHI in application logs
+- Never store unencrypted medical data
+- Never skip consent validation for data access
+- Never implement medical logic without proper validation`
+
+	case "ecommerce":
+		domainPatterns = `["**/*product*", "**/*cart*", "**/*order*", "**/*payment*", "**/*inventory*"]`
+		domainGuidelines = `## E-commerce Domain Rules
+
+### Core Business Logic
+- Implement proper inventory management and stock tracking
+- Use secure payment processing with PCI compliance
+- Implement cart persistence across user sessions
+- Use proper product catalog management with search/filtering
+- Implement comprehensive order management workflows
+
+### Performance Requirements
+- Use CDN for static assets and image optimization
+- Implement proper caching strategies for product data
+- Optimize database queries for large product catalogs
+- Use pagination for large result sets
+- Implement proper search indexing (Elasticsearch, etc.)
+
+### Security Standards
+- Follow PCI-DSS for payment card data
+- Implement secure checkout flows
+- Use proper session management for shopping carts
+- Protect customer data according to GDPR/CCPA
+- Implement fraud detection for transactions
+
+### Forbidden Patterns
+- Never store payment card data without PCI compliance
+- Never implement checkout without proper validation
+- Never allow overselling of inventory
+- Never skip input validation for user data`
+
+	default:
+		domainPatterns = `["**/*"]`
+		domainGuidelines = `## General Domain Rules
+
+### Security Best Practices
+- Validate all user inputs at application boundaries
+- Use HTTPS for all communications
+- Implement proper authentication and authorization
+- Use environment variables for configuration
+- Follow security best practices for your technology stack
+
+### Data Handling
+- Implement proper input validation and sanitization
+- Use appropriate data types for business logic
+- Follow data privacy principles (GDPR compliance)
+- Implement proper error handling and user feedback
+- Use secure coding practices to prevent common vulnerabilities
+
+### Performance Considerations
+- Implement proper caching strategies
+- Optimize database queries and indexes
+- Use appropriate design patterns for scalability
+- Monitor application performance and resource usage
+- Implement proper logging and monitoring`
+	}
+
+	return `---
+description: Domain-specific rules for ` + ci.spec.Domain + ` applications
+globs: ` + domainPatterns + `
+alwaysApply: false
+---
+
+` + domainGuidelines
+}
+
+func (ci *CursorIntegration) generateBackendRule() string {
+	backendPatterns := `["apps/backend/**/*", "**/*.js", "**/*.ts", "**/*.py", "**/*.go"]`
+	
+	var backendGuidelines string
+	switch ci.spec.Backend {
+	case "javascript", "node", "nodejs":
+		backendGuidelines = `## Node.js/JavaScript Backend Rules
+
+### Core Patterns
+- Use async/await instead of callbacks for asynchronous operations
+- Implement proper error middleware for Express.js applications
+- Use environment variables for all configuration
+- Follow Express.js best practices and security guidelines
+- Implement request validation using joi, zod, or similar libraries
+
+### Architecture
+- Use proper MVC or clean architecture patterns
+- Implement service layer for business logic
+- Use repository pattern for data access
+- Implement proper dependency injection
+- Use middleware for cross-cutting concerns
+
+### Error Handling
+- Always use proper error handling with try/catch blocks
+- Implement global error handlers
+- Use appropriate HTTP status codes
+- Log errors with sufficient context for debugging
+- Never expose internal error details to clients
+
+### Performance
+- Use connection pooling for databases
+- Implement proper caching strategies (Redis, in-memory)
+- Use streaming for large data operations
+- Implement proper pagination for large datasets
+- Monitor and optimize database queries`
+
+	case "python":
+		backendGuidelines = `## Python Backend Rules
+
+### Code Style
+- Follow PEP 8 style guidelines strictly
+- Use type hints for all function signatures
+- Implement proper exception handling patterns
+- Use virtual environments for dependency management
+- Follow FastAPI or Django best practices
+
+### Architecture
+- Use proper MVC or clean architecture patterns
+- Implement service layer pattern for business logic
+- Use dependency injection where appropriate
+- Follow SOLID principles in class design
+- Use proper async/await patterns for I/O operations
+
+### Error Handling
+- Use specific exception types instead of generic Exception
+- Implement proper logging with structured formats
+- Use context managers for resource management
+- Handle database connections properly
+- Implement proper validation using Pydantic or similar
+
+### Performance
+- Use appropriate data structures for performance
+- Implement proper database connection pooling
+- Use caching strategies (Redis, memcached)
+- Profile code for performance bottlenecks
+- Use async frameworks for high-concurrency applications`
+
+	case "go":
+		backendGuidelines = `## Go Backend Rules
+
+### Go Idioms
+- Follow effective Go principles and idioms
+- Use proper error handling patterns (no exceptions)
+- Implement context cancellation for long-running operations
+- Use interfaces for abstraction and testing
+- Write idiomatic Go code following community standards
+
+### Architecture
+- Use clean architecture or hexagonal architecture
+- Implement proper dependency injection
+- Use proper package organization
+- Follow Go project layout standards
+- Use appropriate design patterns
+
+### Error Handling
+- Always check and handle errors explicitly
+- Use error wrapping for context (fmt.Errorf with %w verb)
+- Implement proper logging with structured formats
+- Use context for cancellation and timeouts
+- Handle panics appropriately with recover()
+
+### Performance
+- Use proper goroutine patterns
+- Implement channels for communication
+- Use sync package for proper synchronization
+- Profile applications with pprof
+- Optimize memory allocations and garbage collection`
+
+	default:
+		backendGuidelines = `## General Backend Rules
+
+### Architecture
+- Follow language-specific best practices
+- Implement proper separation of concerns
+- Use appropriate design patterns
+- Follow clean code principles
+- Implement proper testing strategies
+
+### Error Handling
+- Implement comprehensive error handling
+- Use appropriate logging levels and formats
+- Handle edge cases and failure scenarios
+- Implement proper retry mechanisms
+- Use circuit breaker patterns for external services
+
+### Performance
+- Optimize database queries and connections
+- Implement proper caching strategies
+- Monitor application performance
+- Use appropriate concurrency patterns
+- Implement proper resource management`
+	}
+
+	return `---
+description: Backend development patterns and standards
+globs: ` + backendPatterns + `
+alwaysApply: false
+---
+
+` + backendGuidelines
+}
+
+func (ci *CursorIntegration) generateFrontendRule() string {
+	return `---
+description: Frontend React TypeScript development standards
+globs: ["apps/frontend/**/*", "**/*.tsx", "**/*.jsx", "**/*.css", "**/*.scss"]
+alwaysApply: false
+---
+
+# Frontend Development Rules
+
+## React TypeScript Patterns
+
+### Component Development
+- Use functional components with hooks exclusively
+- Implement proper TypeScript interfaces for all props
+- Follow PascalCase naming convention for components
+- Use proper component composition patterns
+- Implement error boundaries for robust error handling
+
+### State Management
+- Use React hooks (useState, useEffect, useContext) appropriately
+- Implement custom hooks for complex logic reuse
+- Use proper dependency arrays in useEffect
+- Avoid prop drilling - use Context API when needed
+- Implement proper state normalization for complex data
+
+### TypeScript Standards
+- Use strict TypeScript configuration
+- Define proper interfaces for all data structures
+- Use union types and type guards appropriately
+- Implement proper generic types where beneficial
+- Avoid 'any' type - use proper typing
+
+### Performance Optimization
+- Use React.memo for expensive components
+- Implement proper key props for list items
+- Use useMemo and useCallback for expensive operations
+- Implement code splitting with React.lazy
+- Optimize bundle size with proper tree shaking
+
+### Styling Standards
+- Use CSS modules or styled-components for component styling
+- Follow BEM methodology for CSS class naming
+- Implement responsive design patterns
+- Use CSS custom properties for theming
+- Maintain consistent spacing and typography scales
+
+### Testing Patterns
+- Write unit tests for components using React Testing Library
+- Test user interactions and behavior, not implementation
+- Use proper test data and mocking strategies
+- Implement accessibility testing
+- Write integration tests for complex user flows
+
+### Accessibility (a11y)
+- Use semantic HTML elements appropriately
+- Implement proper ARIA labels and roles
+- Ensure keyboard navigation support
+- Maintain proper color contrast ratios
+- Test with screen readers and accessibility tools`
+}
+
+func (ci *CursorIntegration) generateSecurityRule() string {
+	return `---
+description: Security standards and best practices
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Security Standards
+
+## Critical Security Rules
+
+### Data Protection
+- **NEVER log sensitive information** (passwords, tokens, PII, API keys)
+- Use environment variables for all configuration and secrets
+- Implement proper input validation at all boundaries
+- Use parameterized queries to prevent SQL injection
+- Implement proper authentication and authorization
+
+### Communication Security
+- Use HTTPS/TLS for all communications
+- Implement proper CORS policies
+- Use secure headers (CSP, HSTS, X-Frame-Options)
+- Validate and sanitize all user inputs
+- Implement proper session management
+
+### Code Security
+- Never hardcode secrets, API keys, or passwords
+- Use proper cryptographic libraries for encryption
+- Implement secure random number generation
+- Follow principle of least privilege
+- Use proper error handling without information disclosure
+
+### Infrastructure Security
+- Use secure defaults for all configurations
+- Implement proper secrets management
+- Use container security best practices
+- Implement proper logging and monitoring
+- Follow security scanning and vulnerability management
+
+## Domain-Specific Security
+
+` + ci.getDomainSecurityRules() + `
+
+## Security Checklist
+- [ ] Input validation implemented
+- [ ] Authentication and authorization working
+- [ ] Sensitive data properly encrypted
+- [ ] Security headers configured
+- [ ] Error handling doesn't leak information
+- [ ] Dependencies scanned for vulnerabilities
+- [ ] Secrets managed properly
+- [ ] Logging excludes sensitive data`
+}
+
+func (ci *CursorIntegration) generateTestingRule() string {
+	return `---
+description: Testing standards and best practices
+globs: ["**/*.test.*", "**/*.spec.*", "**/tests/**/*", "**/__tests__/**/*"]
+alwaysApply: false
+---
+
+# Testing Standards
+
+## Testing Philosophy
+- Test behavior, not implementation details
+- Write tests that provide confidence in the system
+- Use descriptive test names that explain the scenario
+- Follow the testing pyramid (unit > integration > e2e)
+- Maintain high test coverage for critical business logic
+
+## Unit Testing
+- Test individual functions and components in isolation
+- Use proper mocking for external dependencies
+- Test edge cases and error conditions
+- Use arrange-act-assert (AAA) pattern
+- Keep tests fast and independent
+
+## Integration Testing
+- Test component interactions and API endpoints
+- Use realistic test data and scenarios
+- Test authentication and authorization flows
+- Verify data persistence and retrieval
+- Test error handling and recovery
+
+## End-to-End Testing
+- Test critical user journeys and workflows
+- Use page object patterns for maintainability
+- Test across different browsers and devices
+- Use stable selectors (data-testid attributes)
+- Keep E2E tests focused and reliable
+
+## Test Data Management
+- Use factories or builders for test data creation
+- Implement proper test database setup and teardown
+- Use realistic but anonymized data
+- Follow data privacy guidelines
+- Implement proper test isolation
+
+## Domain-Specific Testing
+
+` + ci.getDomainTestingGuidelines() + `
+
+## Testing Best Practices
+- Run tests in CI/CD pipeline
+- Maintain test coverage reports
+- Review and update tests with code changes
+- Use property-based testing where appropriate
+- Implement performance and security testing`
+}
+
+func (ci *CursorIntegration) getDomainSecurityRules() string {
+	switch ci.spec.Domain {
+	case "fintech":
+		return `### Financial Services Security
+- Follow PCI-DSS requirements for payment card data
+- Implement strong encryption for financial data (AES-256)
+- Use proper tokenization for sensitive payment information
+- Implement fraud detection and prevention mechanisms
+- Follow SOX compliance for financial reporting
+- Use proper audit trails for all financial operations
+- Implement rate limiting for financial APIs
+- Use secure communication protocols (TLS 1.3+)`
+
+	case "healthcare":
+		return `### Healthcare Security (HIPAA)
+- Encrypt all PHI at rest and in transit
+- Implement proper access controls and audit logging
+- Use strong authentication (preferably MFA)
+- Follow HIPAA Security Rule requirements
+- Implement proper data retention and disposal
+- Use de-identification techniques for analytics
+- Implement proper consent management
+- Follow FHIR security guidelines for interoperability`
+
+	case "ecommerce":
+		return `### E-commerce Security
+- Follow PCI-DSS for payment processing
+- Implement secure checkout flows
+- Protect customer data according to GDPR/CCPA
+- Use proper session management for shopping carts
+- Implement fraud detection for transactions
+- Secure product catalog and inventory data
+- Use proper authentication for user accounts
+- Implement secure password policies`
+
+	default:
+		return `### General Security
+- Follow OWASP Top 10 security guidelines
+- Implement proper authentication and authorization
+- Use secure coding practices
+- Follow data protection regulations (GDPR)
+- Implement proper logging and monitoring
+- Use security scanning tools
+- Follow secure development lifecycle (SDLC)
+- Implement incident response procedures`
+	}
+}
+
+func (ci *CursorIntegration) getDomainTestingGuidelines() string {
+	switch ci.spec.Domain {
+	case "fintech":
+		return `### Financial Services Testing
+- Test monetary calculations with precise decimal arithmetic
+- Verify audit trails for all financial operations
+- Test compliance workflows (KYC, AML procedures)
+- Validate encryption of sensitive financial data
+- Test fraud detection mechanisms
+- Verify regulatory reporting accuracy
+- Test transaction idempotency
+- Validate PCI-DSS compliance in payment flows`
+
+	case "healthcare":
+		return `### Healthcare Testing
+- Test PHI encryption and access controls
+- Verify HIPAA compliance in data handling
+- Test consent management workflows
+- Validate clinical decision support accuracy
+- Test FHIR interoperability
+- Verify audit logging for data access
+- Test emergency access (break-glass) procedures
+- Validate data anonymization for analytics`
+
+	case "ecommerce":
+		return `### E-commerce Testing
+- Test inventory management and stock tracking
+- Verify payment processing security
+- Test shopping cart persistence
+- Validate order fulfillment workflows
+- Test search and filtering performance
+- Verify product catalog management
+- Test recommendation algorithms
+- Validate customer data protection`
+
+	default:
+		return `### General Testing
+- Test security controls and authentication
+- Verify data validation and sanitization
+- Test error handling and recovery
+- Validate performance under load
+- Test integration with external services
+- Verify logging and monitoring
+- Test backup and disaster recovery
+- Validate compliance with regulations`
 	}
 }

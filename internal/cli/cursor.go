@@ -149,7 +149,7 @@ func validateCursorConfiguration() error {
 	}{
 		{"Cursor configuration directory", checkCursorDirectory},
 		{"Cursor settings file", checkCursorSettings},
-		{".cursorrules file", checkCursorRules},
+		{"Cursor rules (.mdc files)", checkCursorRules},
 		{"MCP server configuration", checkMCPConfig},
 		{"Guard rails integration", checkGuardRailsIntegration},
 	}
@@ -274,22 +274,35 @@ func checkCursorSettings() (bool, string) {
 }
 
 func checkCursorRules() (bool, string) {
-	if _, err := os.Stat(".cursorrules"); os.IsNotExist(err) {
-		return false, "run 'codekeeper cursor setup' to create"
+	// Check for new .cursor/rules directory structure
+	if _, err := os.Stat(".cursor/rules"); os.IsNotExist(err) {
+		return false, "run 'codekeeper cursor setup' to create .cursor/rules"
 	}
 	
-	// Verify it contains guard rails
-	data, err := os.ReadFile(".cursorrules")
-	if err != nil {
-		return false, "cannot read .cursorrules file"
+	// Check for key rule files
+	requiredRules := []string{
+		".cursor/rules/project-standards.mdc",
+		".cursor/rules/security-standards.mdc",
 	}
 	
-	content := string(data)
-	if strings.Contains(content, "AI Development Framework") {
-		return true, ""
+	for _, ruleFile := range requiredRules {
+		if _, err := os.Stat(ruleFile); os.IsNotExist(err) {
+			return false, fmt.Sprintf("missing rule file: %s", ruleFile)
+		}
+		
+		// Verify it contains proper MDC format
+		data, err := os.ReadFile(ruleFile)
+		if err != nil {
+			return false, fmt.Sprintf("cannot read %s", ruleFile)
+		}
+		
+		content := string(data)
+		if !strings.Contains(content, "---") || !strings.Contains(content, "description:") {
+			return false, fmt.Sprintf("invalid MDC format in %s", ruleFile)
+		}
 	}
 	
-	return false, "outdated or invalid .cursorrules file"
+	return true, ""
 }
 
 func checkMCPConfig() (bool, string) {
@@ -322,41 +335,48 @@ func checkGuardRailsIntegration() (bool, string) {
 		return false, "no guard rails configured"
 	}
 	
-	// Check if .cursorrules reflects current configuration
-	if data, err := os.ReadFile(".cursorrules"); err == nil {
+	// Check if .cursor/rules reflect current configuration
+	if data, err := os.ReadFile(".cursor/rules/project-standards.mdc"); err == nil {
 		content := string(data)
-		for _, rule := range config.GuardRails {
-			if !strings.Contains(content, rule) {
-				return false, "guard rails not synced with .cursorrules"
-			}
+		// Check if domain is reflected in rules
+		if strings.Contains(content, config.Domain) {
+			return true, ""
 		}
-		return true, ""
+		return false, "domain not reflected in cursor rules"
 	}
 	
-	return false, ".cursorrules file missing"
+	return false, ".cursor/rules files missing"
 }
 
 func loadCustomRules() ([]string, error) {
-	data, err := os.ReadFile(".cursorrules")
+	var customRules []string
+	
+	// Read from .cursor/rules directory
+	rulesDir := ".cursor/rules"
+	entries, err := os.ReadDir(rulesDir)
 	if err != nil {
 		return nil, err
 	}
 	
-	var customRules []string
-	lines := strings.Split(string(data), "\n")
-	
-	inCustomSection := false
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.Contains(line, "## Custom Project Rules") {
-			inCustomSection = true
-			continue
-		}
-		if inCustomSection && strings.HasPrefix(line, "- ") {
-			customRules = append(customRules, strings.TrimPrefix(line, "- "))
-		}
-		if inCustomSection && line == "" {
-			break
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".mdc") {
+			data, err := os.ReadFile(filepath.Join(rulesDir, entry.Name()))
+			if err != nil {
+				continue
+			}
+			
+			content := string(data)
+			// Extract description from MDC metadata
+			lines := strings.Split(content, "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "description:") {
+					desc := strings.TrimPrefix(line, "description:")
+					desc = strings.Trim(desc, " \"")
+					customRules = append(customRules, desc)
+					break
+				}
+			}
 		}
 	}
 	
