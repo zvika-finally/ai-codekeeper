@@ -455,18 +455,28 @@ func installProjectDependencies(info *EnvProjectInfo) error {
 
 	// Install backend dependencies
 	if info.Backend == "javascript" {
-		if err := runCommand("npm install", "apps/backend"); err != nil {
-			return fmt.Errorf("backend npm install failed: %w", err)
+		backendPath := "apps/backend"
+		if _, err := os.Stat(filepath.Join(backendPath, "package.json")); err == nil {
+			if err := runCommand("npm install", backendPath); err != nil {
+				return fmt.Errorf("backend npm install failed: %w", err)
+			}
+			color.Green("✓ Backend dependencies installed")
+		} else {
+			color.Yellow("⚠️  Backend package.json not found, skipping backend dependencies")
 		}
-		color.Green("✓ Backend dependencies installed")
 	}
 
 	// Install frontend dependencies
 	if info.Frontend {
-		if err := runCommand("npm install", "apps/frontend"); err != nil {
-			return fmt.Errorf("frontend npm install failed: %w", err)
+		frontendPath := "apps/frontend"
+		if _, err := os.Stat(filepath.Join(frontendPath, "package.json")); err == nil {
+			if err := runCommand("npm install", frontendPath); err != nil {
+				return fmt.Errorf("frontend npm install failed: %w", err)
+			}
+			color.Green("✓ Frontend dependencies installed")
+		} else {
+			color.Yellow("⚠️  Frontend package.json not found, skipping frontend dependencies")
 		}
-		color.Green("✓ Frontend dependencies installed")
 	}
 
 	// Install MCP dependencies
@@ -475,6 +485,8 @@ func installProjectDependencies(info *EnvProjectInfo) error {
 			return fmt.Errorf("MCP npm install failed: %w", err)
 		}
 		color.Green("✓ MCP dependencies installed")
+	} else {
+		color.Yellow("⚠️  MCP package.json not found, skipping MCP dependencies")
 	}
 
 	return nil
@@ -485,7 +497,8 @@ func setupDockerEnvironment() error {
 
 	// Check if docker-compose.yml exists
 	if _, err := os.Stat("docker-compose.yml"); err != nil {
-		return fmt.Errorf("docker-compose.yml not found")
+		color.Yellow("⚠️  docker-compose.yml not found, skipping Docker setup")
+		return nil
 	}
 
 	// Pull Docker images
@@ -512,7 +525,8 @@ func setupMCPServers() error {
 
 	mcpDir := "scripts/mcp"
 	if _, err := os.Stat(mcpDir); err != nil {
-		return fmt.Errorf("MCP directory not found")
+		color.Yellow("⚠️  MCP directory not found, skipping MCP server setup")
+		return nil
 	}
 
 	// Make MCP servers executable
