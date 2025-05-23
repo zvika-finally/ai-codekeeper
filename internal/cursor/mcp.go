@@ -1,10 +1,12 @@
 package cursor
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // MCPServer represents a Model Context Protocol server configuration
@@ -356,36 +358,488 @@ func formatForbiddenPatterns(patterns []string) string {
 	return result
 }
 
+// MCPRequest represents an MCP JSON-RPC request
+type MCPRequest struct {
+	JSONRPC string      `json:"jsonrpc"`
+	ID      interface{} `json:"id,omitempty"`
+	Method  string      `json:"method"`
+	Params  interface{} `json:"params,omitempty"`
+}
+
+// MCPResponse represents an MCP JSON-RPC response
+type MCPResponse struct {
+	JSONRPC string      `json:"jsonrpc"`
+	ID      interface{} `json:"id,omitempty"`
+	Result  interface{} `json:"result,omitempty"`
+	Error   interface{} `json:"error,omitempty"`
+}
+
 // StartGuardRailsServer starts the MCP guard rails server
 func StartGuardRailsServer(domain, projectPath string) error {
-	// For now, this is a placeholder that outputs JSON-RPC messages
-	// In a real implementation, this would start an actual MCP server
+	scanner := bufio.NewScanner(os.Stdin)
 	
-	// Initialize the server
-	fmt.Println(`{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {"listChanged": true}, "resources": {"listChanged": true}}, "clientInfo": {"name": "codekeeper-guardrails", "version": "1.0.0"}}}`)
-	
-	// Keep server running and respond to requests
-	for {
-		// This would normally handle actual MCP protocol messages
-		// For demo purposes, we'll just sleep
-		select {}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		
+		var request MCPRequest
+		if err := json.Unmarshal([]byte(line), &request); err != nil {
+			continue
+		}
+		
+		response := handleGuardRailsRequest(request, domain, projectPath)
+		if response != nil {
+			responseJSON, _ := json.Marshal(response)
+			fmt.Println(string(responseJSON))
+		}
 	}
+	
+	return scanner.Err()
 }
 
 // StartDomainServer starts the MCP domain expertise server
 func StartDomainServer(domain string) error {
-	// For now, this is a placeholder that outputs JSON-RPC messages
-	// In a real implementation, this would start an actual MCP server
+	scanner := bufio.NewScanner(os.Stdin)
 	
-	// Initialize the server
-	fmt.Println(`{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {"listChanged": true}, "resources": {"listChanged": true}}, "clientInfo": {"name": "codekeeper-domain-expert", "version": "1.0.0"}}}`)
-	
-	// Keep server running and respond to requests
-	for {
-		// This would normally handle actual MCP protocol messages
-		// For demo purposes, we'll just sleep
-		select {}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		
+		var request MCPRequest
+		if err := json.Unmarshal([]byte(line), &request); err != nil {
+			continue
+		}
+		
+		response := handleDomainRequest(request, domain)
+		if response != nil {
+			responseJSON, _ := json.Marshal(response)
+			fmt.Println(string(responseJSON))
+		}
 	}
+	
+	return scanner.Err()
+}
+
+// handleGuardRailsRequest processes MCP requests for the guard rails server
+func handleGuardRailsRequest(request MCPRequest, domain, projectPath string) *MCPResponse {
+	switch request.Method {
+	case "initialize":
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      request.ID,
+			Result: map[string]interface{}{
+				"protocolVersion": "2024-11-05",
+				"capabilities": map[string]interface{}{
+					"tools": map[string]interface{}{
+						"listChanged": true,
+					},
+					"resources": map[string]interface{}{
+						"listChanged": true,
+					},
+				},
+				"serverInfo": map[string]interface{}{
+					"name":    "Finally AI CodeKeeper Guard Rails",
+					"version": "1.0.0",
+				},
+			},
+		}
+		
+	case "tools/list":
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      request.ID,
+			Result: map[string]interface{}{
+				"tools": []map[string]interface{}{
+					{
+						"name":        "validate_code",
+						"description": "Validate code against domain-specific guard rails",
+						"inputSchema": map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"code": map[string]interface{}{
+									"type":        "string",
+									"description": "Code to validate",
+								},
+								"language": map[string]interface{}{
+									"type":        "string",
+									"description": "Programming language",
+								},
+							},
+							"required": []string{"code"},
+						},
+					},
+					{
+						"name":        "suggest_fix",
+						"description": "Suggest fixes for guard rail violations",
+						"inputSchema": map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"violation": map[string]interface{}{
+									"type":        "string",
+									"description": "Guard rail violation description",
+								},
+								"code": map[string]interface{}{
+									"type":        "string",
+									"description": "Problematic code",
+								},
+							},
+							"required": []string{"violation", "code"},
+						},
+					},
+				},
+			},
+		}
+		
+	case "tools/call":
+		if params, ok := request.Params.(map[string]interface{}); ok {
+			if name, ok := params["name"].(string); ok {
+				switch name {
+				case "validate_code":
+					return handleValidateCode(request.ID, params, domain)
+				case "suggest_fix":
+					return handleSuggestFix(request.ID, params, domain)
+				}
+			}
+		}
+		
+	default:
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      request.ID,
+			Error: map[string]interface{}{
+				"code":    -32601,
+				"message": "Method not found",
+			},
+		}
+	}
+	
+	return nil
+}
+
+// handleDomainRequest processes MCP requests for the domain expertise server
+func handleDomainRequest(request MCPRequest, domain string) *MCPResponse {
+	switch request.Method {
+	case "initialize":
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      request.ID,
+			Result: map[string]interface{}{
+				"protocolVersion": "2024-11-05",
+				"capabilities": map[string]interface{}{
+					"tools": map[string]interface{}{
+						"listChanged": true,
+					},
+					"resources": map[string]interface{}{
+						"listChanged": true,
+					},
+				},
+				"serverInfo": map[string]interface{}{
+					"name":    fmt.Sprintf("Finally AI CodeKeeper %s Expert", strings.Title(domain)),
+					"version": "1.0.0",
+				},
+			},
+		}
+		
+	case "tools/list":
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      request.ID,
+			Result: map[string]interface{}{
+				"tools": getDomainTools(domain),
+			},
+		}
+		
+	case "tools/call":
+		if params, ok := request.Params.(map[string]interface{}); ok {
+			if name, ok := params["name"].(string); ok {
+				return handleDomainToolCall(request.ID, name, params, domain)
+			}
+		}
+		
+	default:
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      request.ID,
+			Error: map[string]interface{}{
+				"code":    -32601,
+				"message": "Method not found",
+			},
+		}
+	}
+	
+	return nil
+}
+
+// handleValidateCode validates code against guard rails
+func handleValidateCode(id interface{}, params map[string]interface{}, domain string) *MCPResponse {
+	code, _ := params["code"].(string)
+	language, _ := params["language"].(string)
+	
+	violations := validateCodeAgainstGuardRails(code, language, domain)
+	
+	return &MCPResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: map[string]interface{}{
+			"content": []map[string]interface{}{
+				{
+					"type": "text",
+					"text": fmt.Sprintf("Validation Results:\n%s", formatValidationResults(violations)),
+				},
+			},
+		},
+	}
+}
+
+// handleSuggestFix suggests fixes for violations
+func handleSuggestFix(id interface{}, params map[string]interface{}, domain string) *MCPResponse {
+	violation, _ := params["violation"].(string)
+	code, _ := params["code"].(string)
+	
+	suggestion := generateFixSuggestion(violation, code, domain)
+	
+	return &MCPResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: map[string]interface{}{
+			"content": []map[string]interface{}{
+				{
+					"type": "text",
+					"text": suggestion,
+				},
+			},
+		},
+	}
+}
+
+// validateCodeAgainstGuardRails performs actual validation
+func validateCodeAgainstGuardRails(code, language, domain string) []string {
+	var violations []string
+	
+	// Domain-specific validations
+	switch domain {
+	case "fintech":
+		if strings.Contains(code, "parseFloat") || strings.Contains(code, "parseInt") {
+			violations = append(violations, "Use Decimal or BigNumber for financial calculations instead of parseFloat/parseInt")
+		}
+		if strings.Contains(code, "Math.random()") {
+			violations = append(violations, "Use cryptographically secure random number generation for financial operations")
+		}
+		if strings.Contains(code, "console.log") && (strings.Contains(code, "amount") || strings.Contains(code, "balance")) {
+			violations = append(violations, "Never log sensitive financial data")
+		}
+		
+	case "healthcare":
+		if strings.Contains(code, "console.log") && (strings.Contains(code, "patient") || strings.Contains(code, "phi")) {
+			violations = append(violations, "Never log PHI (Protected Health Information)")
+		}
+		if strings.Contains(code, "http://") {
+			violations = append(violations, "Use HTTPS for all healthcare data transmission")
+		}
+		
+	default:
+		if strings.Contains(code, "eval(") {
+			violations = append(violations, "Avoid using eval() - security risk")
+		}
+		if strings.Contains(code, "innerHTML =") {
+			violations = append(violations, "Use textContent or proper sanitization to prevent XSS")
+		}
+	}
+	
+	// General validations
+	if strings.Contains(code, "password") && strings.Contains(code, "=") && !strings.Contains(code, "hash") {
+		violations = append(violations, "Never store passwords in plain text")
+	}
+	
+	return violations
+}
+
+// generateFixSuggestion creates fix suggestions
+func generateFixSuggestion(violation, code, domain string) string {
+	switch {
+	case strings.Contains(violation, "parseFloat"):
+		return "Replace parseFloat() with Decimal.js or a similar library:\n\n" +
+			"// Instead of:\nconst amount = parseFloat(value);\n\n" +
+			"// Use:\nconst amount = new Decimal(value);"
+			
+	case strings.Contains(violation, "Math.random"):
+		return "Replace Math.random() with crypto.randomBytes():\n\n" +
+			"// Instead of:\nconst randomValue = Math.random();\n\n" +
+			"// Use:\nconst crypto = require('crypto');\nconst randomValue = crypto.randomBytes(4).readUInt32BE(0) / 0xFFFFFFFF;"
+			
+	case strings.Contains(violation, "console.log"):
+		return "Remove or replace console.log with proper logging:\n\n" +
+			"// Remove sensitive data logging or use structured logging:\nlogger.info('Operation completed', { operationId: id });"
+			
+	case strings.Contains(violation, "eval"):
+		return "Replace eval() with safer alternatives:\n\n" +
+			"// Instead of eval(), use JSON.parse() for data or Function() constructor for safer code evaluation"
+			
+	default:
+		return fmt.Sprintf("Fix suggestion for: %s\n\nReview the %s domain best practices and apply appropriate security measures.", violation, domain)
+	}
+}
+
+// getDomainTools returns available tools for a domain
+func getDomainTools(domain string) []map[string]interface{} {
+	switch domain {
+	case "fintech":
+		return []map[string]interface{}{
+			{
+				"name":        "generate_payment_api",
+				"description": "Generate secure payment API endpoints",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"operation": map[string]interface{}{
+							"type": "string",
+							"enum": []string{"payment", "refund", "transfer"},
+						},
+					},
+				},
+			},
+			{
+				"name":        "compliance_check",
+				"description": "Check code for financial compliance",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"code": map[string]interface{}{"type": "string"},
+					},
+				},
+			},
+		}
+	default:
+		return []map[string]interface{}{
+			{
+				"name":        "best_practices",
+				"description": "Get domain-specific best practices",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"topic": map[string]interface{}{"type": "string"},
+					},
+				},
+			},
+		}
+	}
+}
+
+// handleDomainToolCall handles tool calls for domain expertise
+func handleDomainToolCall(id interface{}, name string, params map[string]interface{}, domain string) *MCPResponse {
+	switch name {
+	case "generate_payment_api":
+		operation, _ := params["operation"].(string)
+		code := generatePaymentAPI(operation, domain)
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+			Result: map[string]interface{}{
+				"content": []map[string]interface{}{
+					{"type": "text", "text": code},
+				},
+			},
+		}
+		
+	case "compliance_check":
+		code, _ := params["code"].(string)
+		results := performComplianceCheck(code, domain)
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+			Result: map[string]interface{}{
+				"content": []map[string]interface{}{
+					{"type": "text", "text": results},
+				},
+			},
+		}
+		
+	default:
+		return &MCPResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+			Error: map[string]interface{}{
+				"code":    -32601,
+				"message": "Tool not found",
+			},
+		}
+	}
+}
+
+// Helper functions
+func formatValidationResults(violations []string) string {
+	if len(violations) == 0 {
+		return "✅ No guard rail violations found!"
+	}
+	
+	result := fmt.Sprintf("⚠️ Found %d guard rail violations:\n\n", len(violations))
+	for i, violation := range violations {
+		result += fmt.Sprintf("%d. %s\n", i+1, violation)
+	}
+	
+	return result
+}
+
+func generatePaymentAPI(operation, domain string) string {
+	switch operation {
+	case "payment":
+		return `// Secure Payment API Endpoint
+const Decimal = require('decimal.js');
+const { v4: uuidv4 } = require('uuid');
+
+app.post('/api/payments', async (req, res) => {
+  try {
+    const { amount, currency, paymentMethodId } = req.body;
+    
+    // Validate input
+    if (!amount || !currency || !paymentMethodId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Use Decimal for monetary calculations
+    const paymentAmount = new Decimal(amount);
+    if (paymentAmount.lessThanOrEqualTo(0)) {
+      return res.status(400).json({ error: 'Amount must be positive' });
+    }
+    
+    // Generate idempotency key
+    const idempotencyKey = req.headers['idempotency-key'] || uuidv4();
+    
+    // Process payment with audit logging
+    const payment = await processPayment({
+      amount: paymentAmount,
+      currency,
+      paymentMethodId,
+      idempotencyKey,
+      userId: req.user.id
+    });
+    
+    // Log transaction for audit
+    await auditLogger.log('PAYMENT_CREATED', {
+      paymentId: payment.id,
+      amount: paymentAmount.toString(),
+      currency,
+      userId: req.user.id
+    });
+    
+    res.json({ success: true, payment });
+  } catch (error) {
+    logger.error('Payment processing failed', { error: error.message });
+    res.status(500).json({ error: 'Payment processing failed' });
+  }
+});`
+	default:
+		return fmt.Sprintf("// %s API generation not yet implemented", operation)
+	}
+}
+
+func performComplianceCheck(code, domain string) string {
+	violations := validateCodeAgainstGuardRails(code, "javascript", domain)
+	return formatValidationResults(violations)
 }
 
 // Utility function

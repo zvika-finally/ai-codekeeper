@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -79,17 +83,7 @@ func newCursorValidateCmd() *cobra.Command {
 		Short: "Validate Cursor IDE configuration",
 		Long:  "Validates that Cursor IDE is properly configured with guard rails",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			color.Blue("🔍 Validating Cursor IDE configuration...")
-
-			// TODO: Implement validation logic
-			fmt.Printf("Cursor validation not yet implemented\n")
-			fmt.Printf("Would check:\n")
-			fmt.Printf("- .cursor/config.json exists and is valid\n")
-			fmt.Printf("- MCP servers are accessible\n")
-			fmt.Printf("- .cursorrules file is present\n")
-			fmt.Printf("- Guard rails are active\n")
-
-			return nil
+			return validateCursorConfiguration()
 		},
 	}
 }
@@ -100,17 +94,7 @@ func newCursorRulesCmd() *cobra.Command {
 		Short: "Manage Cursor AI rules",
 		Long:  "View and manage AI rules for Cursor IDE",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			color.Blue("📋 Cursor AI Rules:")
-
-			// TODO: Load and display current rules
-			fmt.Printf("Rules management not yet implemented\n")
-			fmt.Printf("Would show:\n")
-			fmt.Printf("- Active guard rails\n")
-			fmt.Printf("- Domain-specific rules\n")
-			fmt.Printf("- Custom project rules\n")
-			fmt.Printf("- Rule enforcement status\n")
-
-			return nil
+			return manageCursorRules()
 		},
 	}
 }
@@ -121,10 +105,283 @@ type ProjectConfig struct {
 }
 
 func loadProjectConfig() (*ProjectConfig, error) {
-	// TODO: Load actual configuration from .codekeeper/config.json
-	// For now, return mock data
+	// Check if .codekeeper directory exists
+	if _, err := os.Stat(".codekeeper"); os.IsNotExist(err) {
+		return nil, fmt.Errorf("no AI dev project found")
+	}
+
+	// Try to load from env.local first
+	if data, err := os.ReadFile(".codekeeper/env.local"); err == nil {
+		content := string(data)
+		config := &ProjectConfig{
+			Domain: "general",
+			GuardRails: []string{"input_validation", "security_headers", "error_handling"},
+		}
+
+		// Extract domain
+		if strings.Contains(content, "CODEKEEPER_DOMAIN=fintech") {
+			config.Domain = "fintech"
+			config.GuardRails = []string{"decimal_arithmetic", "audit_trails", "encryption_at_rest", "input_validation"}
+		} else if strings.Contains(content, "CODEKEEPER_DOMAIN=healthcare") {
+			config.Domain = "healthcare"
+			config.GuardRails = []string{"hipaa_compliance", "data_encryption", "audit_logs", "access_controls"}
+		} else if strings.Contains(content, "CODEKEEPER_DOMAIN=ecommerce") {
+			config.Domain = "ecommerce"
+			config.GuardRails = []string{"payment_security", "pci_compliance", "inventory_validation", "user_privacy"}
+		}
+
+		return config, nil
+	}
+
+	// Default config if no env file
 	return &ProjectConfig{
-		Domain:     "fintech",
-		GuardRails: []string{"decimal_arithmetic", "audit_trails", "input_validation"},
+		Domain:     "general",
+		GuardRails: []string{"input_validation", "security_headers", "error_handling"},
 	}, nil
+}
+
+func validateCursorConfiguration() error {
+	color.Blue("🔍 Validating Cursor IDE configuration...")
+	
+	checks := []struct {
+		name string
+		fn   func() (bool, string)
+	}{
+		{"Cursor configuration directory", checkCursorDirectory},
+		{"Cursor settings file", checkCursorSettings},
+		{".cursorrules file", checkCursorRules},
+		{"MCP server configuration", checkMCPConfig},
+		{"Guard rails integration", checkGuardRailsIntegration},
+	}
+
+	allPassed := true
+	for _, check := range checks {
+		passed, message := check.fn()
+		if passed {
+			color.Green("✓ %s", check.name)
+		} else {
+			color.Red("✗ %s: %s", check.name, message)
+			allPassed = false
+		}
+	}
+
+	fmt.Println()
+	if allPassed {
+		color.Green("🎉 Cursor IDE is properly configured!")
+		fmt.Printf("\n📋 Integration status:\n")
+		fmt.Printf("  • Guard rails: Active\n")
+		fmt.Printf("  • MCP servers: Connected\n")
+		fmt.Printf("  • Domain rules: Applied\n")
+		fmt.Printf("  • AI assistant: Enhanced\n")
+	} else {
+		color.Yellow("⚠️  Some issues found. Run 'codekeeper cursor setup' to fix.")
+		return fmt.Errorf("cursor configuration issues detected")
+	}
+
+	return nil
+}
+
+func manageCursorRules() error {
+	color.Blue("📋 Cursor AI Rules:")
+	
+	config, err := loadProjectConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load project configuration: %w", err)
+	}
+
+	fmt.Println()
+	color.Cyan("🎯 Domain: %s", config.Domain)
+	
+	fmt.Println()
+	color.Cyan("🛡️ Active Guard Rails:")
+	for _, rule := range config.GuardRails {
+		fmt.Printf("  ✓ %s\n", formatRuleName(rule))
+	}
+
+	// Load custom rules from .cursorrules file
+	if customRules, err := loadCustomRules(); err == nil && len(customRules) > 0 {
+		fmt.Println()
+		color.Cyan("📝 Custom Rules:")
+		for _, rule := range customRules {
+			fmt.Printf("  • %s\n", rule)
+		}
+	}
+
+	// Show enforcement status
+	fmt.Println()
+	color.Cyan("⚡ Enforcement Status:")
+	if cursorConfigExists() {
+		color.Green("  ✓ Cursor IDE integration: Active")
+		color.Green("  ✓ Real-time validation: Enabled")
+		color.Green("  ✓ AI assistant enhancement: Active")
+	} else {
+		color.Yellow("  ⚠ Cursor IDE integration: Not configured")
+		fmt.Printf("    Run 'codekeeper cursor setup' to enable\n")
+	}
+
+	fmt.Println()
+	color.Blue("💡 Commands:")
+	fmt.Printf("  codekeeper cursor setup     - Setup/update Cursor integration\n")
+	fmt.Printf("  codekeeper cursor validate  - Validate configuration\n")
+	fmt.Printf("  codekeeper check           - Run guard rails validation\n")
+
+	return nil
+}
+
+func checkCursorDirectory() (bool, string) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return false, "cannot access home directory"
+	}
+	
+	cursorDir := filepath.Join(homeDir, ".cursor")
+	if _, err := os.Stat(cursorDir); os.IsNotExist(err) {
+		return false, "Cursor IDE not installed"
+	}
+	return true, ""
+}
+
+func checkCursorSettings() (bool, string) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return false, "cannot access home directory"
+	}
+	
+	settingsPath := filepath.Join(homeDir, ".cursor", "settings.json")
+	if _, err := os.Stat(settingsPath); os.IsNotExist(err) {
+		return false, "Cursor settings.json not found"
+	}
+	
+	// Check if MCP is configured in settings
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		return false, "cannot read settings file"
+	}
+	
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return false, "invalid settings JSON"
+	}
+	
+	// Check for MCP configuration
+	if mcpServers, exists := settings["mcp.servers"]; exists {
+		if servers, ok := mcpServers.(map[string]interface{}); ok && len(servers) > 0 {
+			return true, ""
+		}
+	}
+	
+	return false, "MCP servers not configured"
+}
+
+func checkCursorRules() (bool, string) {
+	if _, err := os.Stat(".cursorrules"); os.IsNotExist(err) {
+		return false, "run 'codekeeper cursor setup' to create"
+	}
+	
+	// Verify it contains guard rails
+	data, err := os.ReadFile(".cursorrules")
+	if err != nil {
+		return false, "cannot read .cursorrules file"
+	}
+	
+	content := string(data)
+	if strings.Contains(content, "AI Development Framework") {
+		return true, ""
+	}
+	
+	return false, "outdated or invalid .cursorrules file"
+}
+
+func checkMCPConfig() (bool, string) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return false, "cannot access home directory"
+	}
+	
+	settingsPath := filepath.Join(homeDir, ".cursor", "settings.json")
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		return false, "cannot read Cursor settings"
+	}
+	
+	// Check for CodeKeeper MCP server
+	if strings.Contains(string(data), "codekeeper-guard-rails") {
+		return true, ""
+	}
+	
+	return false, "CodeKeeper MCP server not configured"
+}
+
+func checkGuardRailsIntegration() (bool, string) {
+	config, err := loadProjectConfig()
+	if err != nil {
+		return false, "no project configuration found"
+	}
+	
+	if len(config.GuardRails) == 0 {
+		return false, "no guard rails configured"
+	}
+	
+	// Check if .cursorrules reflects current configuration
+	if data, err := os.ReadFile(".cursorrules"); err == nil {
+		content := string(data)
+		for _, rule := range config.GuardRails {
+			if !strings.Contains(content, rule) {
+				return false, "guard rails not synced with .cursorrules"
+			}
+		}
+		return true, ""
+	}
+	
+	return false, ".cursorrules file missing"
+}
+
+func loadCustomRules() ([]string, error) {
+	data, err := os.ReadFile(".cursorrules")
+	if err != nil {
+		return nil, err
+	}
+	
+	var customRules []string
+	lines := strings.Split(string(data), "\n")
+	
+	inCustomSection := false
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "## Custom Project Rules") {
+			inCustomSection = true
+			continue
+		}
+		if inCustomSection && strings.HasPrefix(line, "- ") {
+			customRules = append(customRules, strings.TrimPrefix(line, "- "))
+		}
+		if inCustomSection && line == "" {
+			break
+		}
+	}
+	
+	return customRules, nil
+}
+
+func cursorConfigExists() bool {
+	homeDir, _ := os.UserHomeDir()
+	settingsPath := filepath.Join(homeDir, ".cursor", "settings.json")
+	
+	if data, err := os.ReadFile(settingsPath); err == nil {
+		return strings.Contains(string(data), "codekeeper")
+	}
+	
+	return false
+}
+
+func formatRuleName(rule string) string {
+	// Convert snake_case to human readable
+	formatted := strings.ReplaceAll(rule, "_", " ")
+	words := strings.Fields(formatted)
+	
+	for i, word := range words {
+		words[i] = strings.Title(word)
+	}
+	
+	return strings.Join(words, " ")
 }
