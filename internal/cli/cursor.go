@@ -9,7 +9,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/zvika-finally/ai-codekeeper/internal/cursor"
+	"github.com/zvika-finally/ai-codekeeper/internal/generator"
 )
 
 func NewCursorCmd() *cobra.Command {
@@ -54,15 +54,34 @@ func newCursorSetupCmd() *cobra.Command {
 				return fmt.Errorf("no AI dev project found. Run 'codekeeper init' first")
 			}
 
-			// Generate Cursor configuration
-			cursorConfig, err := cursor.GenerateCursorConfig(".", config.Domain, config.GuardRails)
+			// Create project spec for generator
+			spec := &generator.ProjectSpec{
+				Name:       filepath.Base(getCurrentWorkingDir()),
+				Domain:     config.Domain,
+				CoreEntity: "Entity", // Default entity name
+				Backend:    "javascript", // Default backend
+				APIStyle:   "REST", // Default API style
+			}
+
+			// Generate Cursor configuration using new generator
+			cursorIntegration := generator.NewCursorIntegration(spec)
+			files, err := cursorIntegration.Generate()
 			if err != nil {
 				return fmt.Errorf("failed to generate Cursor config: %w", err)
 			}
 
-			// Save Cursor configuration
-			if err := cursor.SaveCursorConfig(".", cursorConfig); err != nil {
-				return fmt.Errorf("failed to save Cursor config: %w", err)
+			// Write all generated files
+			for filePath, content := range files {
+				// Create directory if needed
+				dir := filepath.Dir(filePath)
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					return fmt.Errorf("failed to create directory %s: %w", dir, err)
+				}
+
+				// Write file
+				if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+					return fmt.Errorf("failed to write file %s: %w", filePath, err)
+				}
 			}
 
 			color.Green("✅ Cursor IDE integration configured!")
@@ -70,7 +89,7 @@ func newCursorSetupCmd() *cobra.Command {
 			fmt.Printf("1. Restart Cursor IDE\n")
 			fmt.Printf("2. Verify MCP servers are loaded in Cursor settings\n")
 			fmt.Printf("3. Test AI assistant with guard rails: Cmd+K\n")
-			fmt.Printf("4. Check .cursorrules is being applied\n")
+			fmt.Printf("4. Check .cursor/rules/*.mdc files are being applied\n")
 
 			return nil
 		},
@@ -110,7 +129,33 @@ func loadProjectConfig() (*ProjectConfig, error) {
 		return nil, fmt.Errorf("no AI dev project found")
 	}
 
-	// Try to load from env.local first
+	// Try to load from config.json first
+	if data, err := os.ReadFile(".codekeeper/config.json"); err == nil {
+		var projectConfig struct {
+			Domain string `json:"domain"`
+		}
+		if json.Unmarshal(data, &projectConfig) == nil {
+			config := &ProjectConfig{
+				Domain: projectConfig.Domain,
+			}
+			
+			// Set domain-specific guard rails
+			switch projectConfig.Domain {
+			case "fintech":
+				config.GuardRails = []string{"decimal_arithmetic", "audit_trails", "encryption_at_rest", "input_validation"}
+			case "healthcare":
+				config.GuardRails = []string{"hipaa_compliance", "data_encryption", "audit_logs", "access_controls"}
+			case "ecommerce":
+				config.GuardRails = []string{"payment_security", "pci_compliance", "inventory_validation", "user_privacy"}
+			default:
+				config.GuardRails = []string{"input_validation", "security_headers", "error_handling"}
+			}
+			
+			return config, nil
+		}
+	}
+
+	// Try to load from env.local as fallback
 	if data, err := os.ReadFile(".codekeeper/env.local"); err == nil {
 		content := string(data)
 		config := &ProjectConfig{
@@ -133,7 +178,7 @@ func loadProjectConfig() (*ProjectConfig, error) {
 		return config, nil
 	}
 
-	// Default config if no env file
+	// Default config if no configuration files found
 	return &ProjectConfig{
 		Domain:     "general",
 		GuardRails: []string{"input_validation", "security_headers", "error_handling"},
@@ -417,4 +462,12 @@ func formatRuleName(rule string) string {
 	}
 	
 	return strings.Join(words, " ")
+}
+
+func getCurrentWorkingDir() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "ai-project"
+	}
+	return wd
 }

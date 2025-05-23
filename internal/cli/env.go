@@ -253,10 +253,22 @@ func checkCodeKeeperConfig() (bool, string) {
 }
 
 func checkEnvFile() (bool, string) {
-	if _, err := os.Stat(".codekeeper/env.local"); os.IsNotExist(err) {
-		return false, "environment file missing"
+	// Check for project configuration (created by cursor setup or project generation)
+	if _, err := os.Stat(".codekeeper/config.json"); err == nil {
+		return true, ""
 	}
-	return true, ""
+	
+	// Check for environment file
+	if _, err := os.Stat(".codekeeper/env.local"); err == nil {
+		return true, ""
+	}
+	
+	// Check for .env file
+	if _, err := os.Stat(".env"); err == nil {
+		return true, ""
+	}
+	
+	return false, "no environment configuration found"
 }
 
 func checkDocker() (bool, string) {
@@ -271,11 +283,19 @@ func checkDocker() (bool, string) {
 }
 
 func checkCursorConfig() (bool, string) {
-	cursorSettings := filepath.Join(os.Getenv("HOME"), ".cursor", "settings.json")
-	if _, err := os.Stat(cursorSettings); os.IsNotExist(err) {
-		return false, "Cursor not configured"
+	// Check for project-level Cursor MCP configuration
+	mcpConfigPath := ".cursor/mcp.json"
+	if _, err := os.Stat(mcpConfigPath); err == nil {
+		return true, ""
 	}
-	return true, ""
+	
+	// Check for project-level Cursor rules
+	rulesDir := ".cursor/rules"
+	if info, err := os.Stat(rulesDir); err == nil && info.IsDir() {
+		return true, ""
+	}
+	
+	return false, "run 'codekeeper cursor setup' to configure Cursor"
 }
 
 func appendToGitignore(content string) error {

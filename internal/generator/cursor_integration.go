@@ -690,16 +690,17 @@ func (ci *CursorIntegration) generateDomainSpecificRule() string {
 	}
 
 	return `---
-description: Domain-specific rules for ` + ci.spec.Domain + ` applications
+description: Domain-specific rules for ` + ci.spec.Domain + ` applications - ALWAYS APPLIED
 globs: ` + domainPatterns + `
-alwaysApply: false
+alwaysApply: true
+priority: 90
 ---
 
 ` + domainGuidelines
 }
 
 func (ci *CursorIntegration) generateBackendRule() string {
-	backendPatterns := `["apps/backend/**/*", "**/*.js", "**/*.ts", "**/*.py", "**/*.go"]`
+	backendPatterns := `["apps/backend/**/*", "backend/**/*", "server/**/*", "api/**/*", "services/**/*"]`
 	
 	var backendGuidelines string
 	switch ci.spec.Backend {
@@ -833,8 +834,9 @@ alwaysApply: false
 func (ci *CursorIntegration) generateFrontendRule() string {
 	return `---
 description: Frontend React TypeScript development standards
-globs: ["apps/frontend/**/*", "**/*.tsx", "**/*.jsx", "**/*.css", "**/*.scss"]
+globs: ["apps/frontend/**/*", "frontend/**/*", "client/**/*", "web/**/*", "**/*.tsx", "**/*.jsx", "**/*.css", "**/*.scss"]
 alwaysApply: false
+priority: 70
 ---
 
 # Frontend Development Rules
