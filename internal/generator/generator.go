@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -37,6 +38,11 @@ func (g *Generator) Generate() error {
 	// Create project directory
 	if err := os.MkdirAll(g.spec.ProjectPath, 0755); err != nil {
 		return fmt.Errorf("failed to create project directory: %w", err)
+	}
+
+	// Initialize git repository
+	if err := g.initializeGitRepository(); err != nil {
+		return fmt.Errorf("failed to initialize git repository: %w", err)
 	}
 
 	// Generate monorepo structure following AI_MASTER_PROMPT.md
@@ -100,6 +106,7 @@ func (g *Generator) generateBasicFiles() error {
 		".devcontainer/devcontainer.json": g.generateDevContainer(),
 		"docs/00_OVERVIEW.md": g.generateOverviewDoc(),
 		".github/workflows/ci.yml": g.generateCIWorkflow(),
+		"LICENSE": g.generateLicense(),
 	}
 
 	for filePath, content := range files {
@@ -490,6 +497,31 @@ jobs:
       run: npm run build`
 }
 
+func (g *Generator) generateLicense() string {
+	currentYear := time.Now().Year()
+	return fmt.Sprintf(`MIT License
+
+Copyright (c) %d %s
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`, currentYear, g.spec.Name)
+}
+
 // Helper functions
 func (g *Generator) getDomainGuardRails() []string {
 	switch g.spec.Domain {
@@ -565,6 +597,181 @@ func (g *Generator) getEnvironmentVars() map[string]string {
 	}
 	
 	return env
+}
+
+// initializeGitRepository sets up a git repository in the project directory
+func (g *Generator) initializeGitRepository() error {
+	// Check if git is available
+	if _, err := exec.LookPath("git"); err != nil {
+		fmt.Printf("⚠️  Git not found, skipping repository initialization\n")
+		return nil
+	}
+
+	// Check if already a git repository
+	gitDir := filepath.Join(g.spec.ProjectPath, ".git")
+	if _, err := os.Stat(gitDir); err == nil {
+		fmt.Printf("📁 Git repository already exists, skipping initialization\n")
+		return nil
+	}
+
+	// Initialize git repository
+	cmd := exec.Command("git", "init")
+	cmd.Dir = g.spec.ProjectPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to initialize git repository: %w", err)
+	}
+
+	// Create .gitignore file
+	gitignoreContent := g.generateGitignore()
+	gitignorePath := filepath.Join(g.spec.ProjectPath, ".gitignore")
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
+		return fmt.Errorf("failed to create .gitignore: %w", err)
+	}
+
+	// Add all files
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = g.spec.ProjectPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to add files to git: %w", err)
+	}
+
+	// Create initial commit
+	commitMessage := fmt.Sprintf("Initial commit: %s\n\nGenerated with AI CodeKeeper v1.0.0\nDomain: %s\nCore Entity: %s", 
+		g.spec.Name, g.spec.Domain, g.spec.CoreEntity)
+	
+	cmd = exec.Command("git", "commit", "-m", commitMessage)
+	cmd.Dir = g.spec.ProjectPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create initial commit: %w", err)
+	}
+
+	fmt.Printf("✅ Git repository initialized with initial commit\n")
+	return nil
+}
+
+// generateGitignore creates a comprehensive .gitignore file
+func (g *Generator) generateGitignore() string {
+	gitignore := `# Dependencies
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production builds
+dist/
+build/
+.next/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# IDEs and editors
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+
+# CodeKeeper
+.codekeeper/logs/
+.codekeeper/cache/
+.codekeeper/*.tmp
+`
+
+	// Add domain-specific ignores
+	switch g.spec.Domain {
+	case "fintech":
+		gitignore += `
+# Fintech-specific
+keys/
+certificates/
+*.pem
+*.key
+audit-logs/
+`
+	case "healthcare":
+		gitignore += `
+# Healthcare-specific
+patient-data/
+phi-logs/
+hipaa-exports/
+`
+	}
+
+	// Add backend-specific ignores
+	if strings.Contains(strings.ToLower(g.spec.Backend), "go") {
+		gitignore += `
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+`
+	}
+
+	if strings.Contains(strings.ToLower(g.spec.Backend), "python") {
+		gitignore += `
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+`
+	}
+
+	return gitignore
 }
 
 // Utility function
