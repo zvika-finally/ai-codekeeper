@@ -54,13 +54,13 @@ func newCursorSetupCmd() *cobra.Command {
 				return fmt.Errorf("no AI dev project found. Run 'codekeeper init' first")
 			}
 
-			// Create project spec for generator
+			// Create project spec for generator with AI-detected stack
 			spec := &generator.ProjectSpec{
 				Name:       filepath.Base(getCurrentWorkingDir()),
 				Domain:     config.Domain,
-				CoreEntity: "Entity", // Default entity name
-				Backend:    "javascript", // Default backend
-				APIStyle:   "REST", // Default API style
+				CoreEntity: detectCoreEntity(),
+				Backend:    detectBackendStack(),
+				APIStyle:   detectAPIStyle(),
 			}
 
 			// Generate Cursor configuration using new generator
@@ -470,4 +470,119 @@ func getCurrentWorkingDir() string {
 		return "ai-project"
 	}
 	return wd
+}
+
+// detectBackendStack analyzes the project to determine the backend technology
+func detectBackendStack() string {
+	// Check for Go
+	if _, err := os.Stat("go.mod"); err == nil {
+		return "go"
+	}
+	if _, err := os.Stat("main.go"); err == nil {
+		return "go"
+	}
+	
+	// Check for Python
+	if _, err := os.Stat("requirements.txt"); err == nil {
+		return "python"
+	}
+	if _, err := os.Stat("pyproject.toml"); err == nil {
+		return "python"
+	}
+	if _, err := os.Stat("Pipfile"); err == nil {
+		return "python"
+	}
+	
+	// Check for Node.js/JavaScript
+	if _, err := os.Stat("package.json"); err == nil {
+		return "javascript"
+	}
+	
+	// Check for Rust
+	if _, err := os.Stat("Cargo.toml"); err == nil {
+		return "rust"
+	}
+	
+	// Check for Java
+	if _, err := os.Stat("pom.xml"); err == nil {
+		return "java"
+	}
+	if _, err := os.Stat("build.gradle"); err == nil {
+		return "java"
+	}
+	
+	// Check for C#/.NET
+	if _, err := os.Stat("*.csproj"); err == nil {
+		return "csharp"
+	}
+	
+	// Check for PHP
+	if _, err := os.Stat("composer.json"); err == nil {
+		return "php"
+	}
+	
+	// Default to JavaScript for web projects
+	return "javascript"
+}
+
+// detectCoreEntity analyzes the project to determine the main business entity
+func detectCoreEntity() string {
+	// Check common domain-specific entities by examining files and directories
+	commonEntities := map[string][]string{
+		"User":        {"user", "account", "profile", "auth"},
+		"Product":     {"product", "item", "catalog", "inventory"},
+		"Order":       {"order", "purchase", "transaction", "sale"},
+		"Payment":     {"payment", "billing", "invoice", "charge"},
+		"Patient":     {"patient", "medical", "health", "clinical"},
+		"Customer":    {"customer", "client", "member"},
+		"Project":     {"project", "task", "workflow"},
+		"Document":    {"document", "file", "content"},
+		"Event":       {"event", "booking", "reservation"},
+		"Asset":       {"asset", "resource", "property"},
+	}
+	
+	// Scan directory names and file names for entity hints
+	for entity, keywords := range commonEntities {
+		for _, keyword := range keywords {
+			// Check for directories
+			if _, err := os.Stat(keyword); err == nil {
+				return entity
+			}
+			// Check for files with keyword
+			matches, _ := filepath.Glob("*" + keyword + "*")
+			if len(matches) > 0 {
+				return entity
+			}
+		}
+	}
+	
+	// Default to generic entity
+	return "Entity"
+}
+
+// detectAPIStyle analyzes the project to determine the API style
+func detectAPIStyle() string {
+	// Check for GraphQL
+	if _, err := os.Stat("schema.graphql"); err == nil {
+		return "GraphQL"
+	}
+	if _, err := os.Stat("*.graphql"); err == nil {
+		return "GraphQL"
+	}
+	
+	// Check for gRPC
+	if _, err := os.Stat("*.proto"); err == nil {
+		return "gRPC"
+	}
+	
+	// Check for OpenAPI/Swagger
+	if _, err := os.Stat("openapi.yaml"); err == nil {
+		return "OpenAPI"
+	}
+	if _, err := os.Stat("swagger.yaml"); err == nil {
+		return "OpenAPI"
+	}
+	
+	// Default to REST for most web APIs
+	return "REST"
 }
