@@ -73,7 +73,7 @@ func (bg *BackendGenerator) generateGoFiles(files map[string]string) {
 	files["apps/backend/go.mod"] = bg.generateGoMod()
 	files["apps/backend/Dockerfile"] = bg.generateGoDockerfile()
 	files["apps/backend/src/main.go"] = bg.generateGoMain()
-	files["apps/backend/.golangci.yml"] = bg.generateGolangCIConfig()
+	// IMPLEMENT: Add .golangci.yml for Go linting configuration
 }
 
 // GetBackendLanguage extracts the programming language from backend choice

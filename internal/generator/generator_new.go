@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/backend"
+	"github.com/zvika-finally/ai-codekeeper/internal/generator/frontend"
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/tooling"
 )
 
@@ -97,8 +98,45 @@ func (g *NewModularGenerator) generateFileComponents() error {
 		allFiles[path] = content
 	}
 
-	// TODO: Add frontend, docs, infrastructure generators here
-	// For now, let's just generate the basic files to test
+	// Frontend files
+	frontendGen := frontend.NewFrontendGenerator(&frontend.ProjectSpec{
+		Name:        g.spec.Name,
+		Description: g.spec.Description,
+		CoreEntity:  g.spec.CoreEntity,
+		Backend:     g.spec.Backend,
+		APIStyle:    g.spec.APIStyle,
+		UserRoles:   g.spec.UserRoles,
+		Domain:      g.spec.Domain,
+		ProjectPath: g.spec.ProjectPath,
+	})
+
+	frontendFiles, err := frontendGen.Generate()
+	if err != nil {
+		return fmt.Errorf("failed to generate frontend files: %w", err)
+	}
+
+	// Merge frontend files
+	for path, content := range frontendFiles {
+		allFiles[path] = content
+	}
+
+	// Generate documentation guidelines
+	docsFiles, err := g.generateDocsGuidelines()
+	if err != nil {
+		return fmt.Errorf("failed to generate docs guidelines: %w", err)
+	}
+	for path, content := range docsFiles {
+		allFiles[path] = content
+	}
+
+	// Generate infrastructure guidelines  
+	infraFiles, err := g.generateInfrastructureGuidelines()
+	if err != nil {
+		return fmt.Errorf("failed to generate infrastructure guidelines: %w", err)
+	}
+	for path, content := range infraFiles {
+		allFiles[path] = content
+	}
 
 	// Write all files
 	for filePath, content := range allFiles {
@@ -117,6 +155,32 @@ func (g *NewModularGenerator) generateFileComponents() error {
 	}
 
 	return nil
+}
+
+// generateDocsGuidelines creates documentation standards and guidelines
+func (g *NewModularGenerator) generateDocsGuidelines() (map[string]string, error) {
+	files := make(map[string]string)
+	
+	files["docs/README.md"] = g.generateProjectReadme()
+	files["docs/API_DESIGN.md"] = g.generateAPIDesignDoc()
+	files["docs/DEPLOYMENT.md"] = g.generateDeploymentDoc()
+	files["docs/CONTRIBUTING.md"] = g.generateContributingDoc()
+	files["docs/ARCHITECTURE.md"] = g.generateArchitectureDoc()
+	
+	return files, nil
+}
+
+// generateInfrastructureGuidelines creates infrastructure standards and guidelines
+func (g *NewModularGenerator) generateInfrastructureGuidelines() (map[string]string, error) {
+	files := make(map[string]string)
+	
+	files["docs/infrastructure/DOCKER.md"] = g.generateDockerGuideDoc()
+	files["docs/infrastructure/CI_CD.md"] = g.generateCICDGuideDoc()
+	files["docs/infrastructure/MONITORING.md"] = g.generateMonitoringDoc()
+	files["docs/infrastructure/SECURITY.md"] = g.generateSecurityDoc()
+	files["docs/infrastructure/SCALING.md"] = g.generateScalingDoc()
+	
+	return files, nil
 }
 
 // ConfigGenerator handles framework configuration generation

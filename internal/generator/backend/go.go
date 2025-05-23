@@ -93,124 +93,69 @@ CMD ["./main"]`)
 
 // generateGoMain creates main.go for Go backend
 func (bg *BackendGenerator) generateGoMain() string {
-	userRoles := bg.spec.GetUserRolesList()
-	rolesStr := strings.Join(userRoles, ", ")
-	if rolesStr == "" {
-		rolesStr = "user"
-	}
+	return `package main
 
-	return fmt.Sprintf(`package main
+// STARTER: ` + bg.spec.Name + ` - ` + bg.spec.Domain + ` Go Backend
+// IMPLEMENT: Follow docs/backend/ guidelines for implementation
 
 import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
-	"time"
-
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
-// %s represents the core entity
-type %s struct {
-	ID        uint      ` + "`json:\"id\" gorm:\"primaryKey\"`" + `
-	CreatedAt time.Time ` + "`json:\"created_at\"`" + `
-	UpdatedAt time.Time ` + "`json:\"updated_at\"`" + `
-	// Add your domain-specific fields here
-}
-
 func main() {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
-	}
-
-	// Set Gin mode
-	if os.Getenv("GIN_MODE") == "release" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	// Create Gin router
 	r := gin.Default()
-
-	// Middleware
-	r.Use(gin.Logger())
-	r.Use(gin.Recovery())
-
-	// CORS middleware
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		
-		c.Next()
-	})
-
-	// Health check endpoint
+	
+	// Health check
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "healthy",
-			"timestamp": time.Now().Format(time.RFC3339),
-			"service":   "%s-backend",
-			"version":   "1.0.0",
-			"domain":    "%s",
-		})
+		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 	})
-
-	// API routes
-	api := r.Group("/api")
+	
+	// API routes for ` + bg.spec.CoreEntity + `
+	api := r.Group("/api/v1")
 	{
-		// Authentication routes
-		api.POST("/auth/login", handleLogin)
-		api.POST("/auth/register", handleRegister)
+		// Authentication
+		api.POST("/login", handleLogin)
+		api.POST("/register", handleRegister)
 		
-		// %s routes
-		api.GET("/%s", get%sHandler)
-		api.POST("/%s", create%sHandler)
-		api.GET("/%s/:id", get%sHandler)
-		api.PUT("/%s/:id", update%sHandler)
-		api.DELETE("/%s/:id", delete%sHandler)
+		// CRUD for ` + bg.spec.CoreEntity + `
+		api.GET("/` + strings.ToLower(bg.spec.CoreEntity) + `s", getResourcesHandler)
+		api.POST("/` + strings.ToLower(bg.spec.CoreEntity) + `s", createResourceHandler)
+		api.GET("/` + strings.ToLower(bg.spec.CoreEntity) + `s/:id", getResourceHandler)
+		api.PUT("/` + strings.ToLower(bg.spec.CoreEntity) + `s/:id", updateResourceHandler)
+		api.DELETE("/` + strings.ToLower(bg.spec.CoreEntity) + `s/:id", deleteResourceHandler)
 	}
-
-	// Get port from environment or default to 8080
+	
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-
-	log.Printf("🚀 %s Backend Server")
-	log.Printf("📡 Port: %%s", port)
-	log.Printf("🌍 Environment: %%s", os.Getenv("GIN_MODE"))
-	log.Printf("📊 Domain: %s")
-	log.Printf("👥 User Roles: %s")
-	log.Printf("✅ Server started successfully")
-
-	// Start server
-	if err := r.Run(":" + port); err != nil {
-		log.Fatal("Failed to start server:", err)
-	}
+	
+	log.Printf("Starting server on port %s", port)
+	r.Run(":" + port)
 }
+
+// Handler functions - IMPLEMENT according to your business logic
 
 // Authentication handlers
 func handleLogin(c *gin.Context) {
-	// TODO: Implement login logic
+	// IMPLEMENT: Add JWT authentication, validate credentials against database
+	// SECURITY: Hash passwords, implement rate limiting, add CORS
 	c.JSON(http.StatusOK, gin.H{"message": "Login endpoint - implement authentication"})
 }
 
 func handleRegister(c *gin.Context) {
-	// TODO: Implement registration logic
+	// IMPLEMENT: Validate input, hash password, save to database
+	// SECURITY: Check password strength, prevent duplicate emails
 	c.JSON(http.StatusOK, gin.H{"message": "Register endpoint - implement user registration"})
 }
 
 // %s CRUD handlers
 func get%sHandler(c *gin.Context) {
-	// TODO: Implement get all %s logic
+	// IMPLEMENT: Query database, add pagination, filtering, sorting
+	// PERFORMANCE: Use database indexes, implement caching
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Get all %s",
 		"data":    []%s{},
@@ -218,13 +163,15 @@ func get%sHandler(c *gin.Context) {
 }
 
 func create%sHandler(c *gin.Context) {
-	// TODO: Implement create %s logic
+	// IMPLEMENT: Validate input, save to database, return created entity
+	// VALIDATION: Check required fields, business rules
 	c.JSON(http.StatusCreated, gin.H{"message": "Create %s endpoint"})
 }
 
 func get%sHandler(c *gin.Context) {
 	id := c.Param("id")
-	// TODO: Implement get single %s logic
+	// IMPLEMENT: Query database by ID, handle not found
+	// VALIDATION: Validate ID format, check permissions
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Get %s by ID",
 		"id":      id,
@@ -233,103 +180,22 @@ func get%sHandler(c *gin.Context) {
 
 func update%sHandler(c *gin.Context) {
 	id := c.Param("id")
-	// TODO: Implement update %s logic
+	// IMPLEMENT: Validate input, update database, return updated entity
+	// VALIDATION: Check exists, validate partial updates
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Update %s",
 		"id":      id,
 	})
 }
 
-func delete%sHandler(c *gin.Context) {
+func deleteResourceHandler(c *gin.Context) {
 	id := c.Param("id")
-	// TODO: Implement delete %s logic
+	// IMPLEMENT: Soft delete, check dependencies, log action
+	// VALIDATION: Check exists, verify permissions
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Delete %s",
+		"message": "Delete ` + bg.spec.CoreEntity + `",
 		"id":      id,
 	})
 }
-`, 
-	bg.spec.CoreEntity, bg.spec.CoreEntity,
-	bg.spec.Name, bg.spec.Domain,
-	bg.spec.CoreEntity, strings.ToLower(bg.spec.CoreEntity), bg.spec.CoreEntity,
-	strings.ToLower(bg.spec.CoreEntity), bg.spec.CoreEntity,
-	strings.ToLower(bg.spec.CoreEntity), bg.spec.CoreEntity,
-	strings.ToLower(bg.spec.CoreEntity), bg.spec.CoreEntity,
-	strings.ToLower(bg.spec.CoreEntity), bg.spec.CoreEntity,
-	bg.spec.Name, bg.spec.Domain, rolesStr,
-	bg.spec.CoreEntity, bg.spec.CoreEntity, bg.spec.CoreEntity,
-	bg.spec.CoreEntity, bg.spec.CoreEntity,
-	bg.spec.CoreEntity, bg.spec.CoreEntity, bg.spec.CoreEntity,
-	bg.spec.CoreEntity, bg.spec.CoreEntity, bg.spec.CoreEntity,
-	bg.spec.CoreEntity, bg.spec.CoreEntity, bg.spec.CoreEntity,
-	bg.spec.CoreEntity, bg.spec.CoreEntity, bg.spec.CoreEntity)
-}
-
-// generateGolangCIConfig creates .golangci.yml configuration
-func (bg *BackendGenerator) generateGolangCIConfig() string {
-	return `run:
-  timeout: 5m
-  modules-download-mode: readonly
-
-linters:
-  enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - typecheck
-    - unused
-    - gofmt
-    - goimports
-    - misspell
-    - unconvert
-    - dupl
-    - goconst
-    - gocyclo
-    - gosec
-    - depguard
-    - prealloc
-    - exportloopref
-    - nolintlint
-
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-  
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  
-  dupl:
-    threshold: 100
-  
-  gosec:
-    severity: "low"
-    confidence: "low"
-    excludes:
-      - G104 # Errors unhandled (we handle this with errcheck)
-  
-  depguard:
-    list-type: blacklist
-    packages:
-      - github.com/pkg/errors
-    packages-with-error-message:
-      - github.com/pkg/errors: "use standard library errors package"
-
-issues:
-  exclude-use-default: false
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gosec
-        - dupl
-    - path: main\.go
-      linters:
-        - gocyclo
-
-output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true`
+`
 }
