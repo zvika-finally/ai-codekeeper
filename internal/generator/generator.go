@@ -251,7 +251,7 @@ This project includes automated guard rails for:
 3. Run guard rails: ` + "`" + `codekeeper check` + "`" + `
 4. Generate additional features: ` + "`" + `codekeeper feature <name>` + "`" + `
 
-Generated with AI Development Framework v1.0.0
+Generated with AI Development Framework v2.0.0
 `,
 		g.spec.Name,
 		g.spec.Description,
@@ -841,7 +841,7 @@ func (g *Generator) initializeGitRepository() error {
 	}
 
 	// Create initial commit
-	commitMessage := fmt.Sprintf("Initial commit: %s\n\nGenerated with AI CodeKeeper v1.0.0\nDomain: %s\nCore Entity: %s", 
+	commitMessage := fmt.Sprintf("Initial commit: %s\n\nGenerated with AI CodeKeeper v2.0.0\nDomain: %s\nCore Entity: %s", 
 		g.spec.Name, g.spec.Domain, g.spec.CoreEntity)
 	
 	cmd = exec.Command("git", "commit", "-m", commitMessage)
@@ -1152,7 +1152,7 @@ The framework provides comprehensive guidelines for AI to implement:
 - **Staging (Render)**: $0-25/month for MVP
 - **Production (AWS)**: $50-200/month depending on scale
 
-Generated with AI CodeKeeper v1.0.0 - Complete production-ready application framework
+Generated with AI CodeKeeper v2.0.0 - Complete production-ready application framework
 `, g.spec.Name, currentDate, g.spec.CoreEntity, g.spec.Domain, 
    g.spec.Backend, g.spec.Domain, g.getDomainSpecificFeatures(),
    g.spec.Backend, g.spec.GetBackendFramework(), strings.Join(g.spec.Databases, ", "), g.spec.APIStyle,
@@ -1462,7 +1462,7 @@ Our monorepo structure promotes code sharing and consistent development practice
 - Auto-scaling based on demand
 - CloudWatch monitoring
 
-Generated with Finally AI CodeKeeper v1.0.0 for %s domain applications.
+Generated with Finally AI CodeKeeper v2.0.0 for %s domain applications.
 `, g.spec.Name, g.spec.Domain, g.spec.Domain, g.spec.Backend, 
    g.spec.Backend, g.getBackendRationale(), 
    strings.Join(g.spec.Databases, ", "), g.getDatabaseRationale(),
@@ -2142,7 +2142,7 @@ When implementing this backend, follow this order:
 - Use structured logging with correlation IDs
 - Handle errors gracefully with proper HTTP status codes
 
-Generated with AI CodeKeeper v1.0.0 - Ready for AI implementation
+Generated with AI CodeKeeper v2.0.0 - Ready for AI implementation
 `, g.spec.Name, g.spec.Description, g.spec.Backend, g.spec.Domain,
    g.spec.GetBackendLanguage(), g.spec.GetBackendFramework(), 
    strings.Join(g.spec.Databases, ", "), g.spec.APIStyle, g.getTestingFramework(),
@@ -2824,7 +2824,7 @@ All API calls should:
 - Show user-friendly error messages
 - Include proper TypeScript types from shared-types package
 
-Generated with AI CodeKeeper v1.0.0 - Ready for AI implementation
+Generated with AI CodeKeeper v2.0.0 - Ready for AI implementation
 `, g.spec.Name, g.spec.Domain, g.spec.CoreEntity, 
    strings.ToLower(g.spec.CoreEntity), g.spec.CoreEntity,
    g.spec.CoreEntity, g.spec.CoreEntity, strings.ToLower(g.spec.CoreEntity), g.spec.CoreEntity,
@@ -3130,7 +3130,7 @@ When adding new types:
 3. Update version in package.json
 4. The monorepo will automatically pick up changes
 
-Generated with AI CodeKeeper v1.0.0
+Generated with AI CodeKeeper v2.0.0
 `, g.spec.Name, g.spec.CoreEntity, g.spec.Name, g.spec.CoreEntity, g.spec.CoreEntity)
 }
 
@@ -3600,7 +3600,7 @@ render deploy --service=%s-backend
 3. **Scaling**: Consider upgrading to standard/pro plans
 4. **AWS Migration**: When ready, migrate to AWS infrastructure
 
-Generated with AI CodeKeeper v1.0.0 - Production-ready Render deployment
+Generated with AI CodeKeeper v2.0.0 - Production-ready Render deployment
 `, g.spec.Name, g.spec.Name, g.spec.Name, g.spec.Name, g.spec.Name, g.spec.Name)
 }
 
@@ -4482,7 +4482,7 @@ terraform destroy -var-file="terraform.tfvars"
 4. **Backup Strategy**: Configure automated backups
 5. **CI/CD Integration**: Update deployment pipeline
 
-Generated with AI CodeKeeper v1.0.0 - Production-ready AWS infrastructure
+Generated with AI CodeKeeper v2.0.0 - Production-ready AWS infrastructure
 `, g.spec.Name, g.spec.Name, g.spec.Name, g.spec.Name, g.spec.Name, g.spec.Name, g.spec.Name, g.spec.Domain, strings.ToLower(g.spec.Domain))
 }
 
@@ -4858,7 +4858,7 @@ PUT    /api/v1/auth/profile      # Update profile
 - Database: Use generated model definitions as starting point
 - Testing: Follow patterns in generated test files
 
-Generated with AI CodeKeeper v1.0.0 - Ready for AI implementation
+Generated with AI CodeKeeper v2.0.0 - Ready for AI implementation
 `, g.spec.Name, g.spec.CoreEntity, g.spec.Domain, g.getDomainImplementationGuidelines(),
    g.spec.CoreEntity, g.spec.CoreEntity, g.spec.Backend, g.spec.CoreEntity, g.spec.Domain,
    strings.ToLower(g.spec.CoreEntity), strings.ToLower(g.spec.CoreEntity), 
@@ -5115,7 +5115,7 @@ Comprehensive checklist for deploying %s to production.
 
 ---
 
-**Generated with AI CodeKeeper v1.0.0**
+**Generated with AI CodeKeeper v2.0.0**
 **Complete Production Readiness Framework for %s**
 `, g.spec.Name, g.spec.Domain, g.getDomainComplianceChecklist(), g.spec.CoreEntity, g.spec.Domain, g.getDomainComplianceRequirements(), g.spec.Name)
 }
@@ -5486,7 +5486,7 @@ AI systems should reference these templates when:
 - **Testing**: Unit tests, integration tests
 - **Documentation**: API docs, README updates
 
-Generated with AI CodeKeeper v1.0.0`
+Generated with AI CodeKeeper v2.0.0`
 }
 
 func (g *Generator) generateImplementationPrompts() string {
@@ -5523,7 +5523,7 @@ When implementing features in this codebase:
 
 %s
 
-Generated with AI CodeKeeper v1.0.0`, g.spec.Name, g.spec.Domain, g.spec.CoreEntity, g.spec.Backend, g.spec.Domain, g.getDomainImplementationGuidelines())
+Generated with AI CodeKeeper v2.0.0`, g.spec.Name, g.spec.Domain, g.spec.CoreEntity, g.spec.Backend, g.spec.Domain, g.getDomainImplementationGuidelines())
 }
 
 // Utility function
