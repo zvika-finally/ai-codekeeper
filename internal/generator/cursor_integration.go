@@ -29,6 +29,9 @@ func (ci *CursorIntegration) Generate() (map[string]string, error) {
 	// Generate main Cursor configuration
 	ci.generateCursorSettings(files)
 	
+	// Generate MCP configuration for Cursor
+	ci.generateCursorMCPConfig(files)
+	
 	// Generate Cursor rules and prompts
 	ci.generateCursorRules(files)
 	
@@ -81,6 +84,93 @@ func (ci *CursorIntegration) generateCursorSettings(files map[string]string) {
 	
 	settingsJSON, _ := json.MarshalIndent(settings, "", "  ")
 	files[".cursor/settings.json"] = string(settingsJSON)
+}
+
+// generateCursorMCPConfig creates MCP server configuration for Cursor
+func (ci *CursorIntegration) generateCursorMCPConfig(files map[string]string) {
+	mcpConfig := map[string]interface{}{
+		"mcpServers": ci.generateMCPServers(),
+	}
+	
+	mcpJSON, _ := json.MarshalIndent(mcpConfig, "", "  ")
+	files[".cursor/mcp.json"] = string(mcpJSON)
+}
+
+// generateMCPServers creates the MCP server configurations
+func (ci *CursorIntegration) generateMCPServers() map[string]interface{} {
+	servers := make(map[string]interface{})
+	
+	// Core project MCP server
+	servers["codekeeper-project"] = map[string]interface{}{
+		"command": "node",
+		"args":    []string{"scripts/mcp/project-server.js"},
+		"env": map[string]string{
+			"PROJECT_NAME":   ci.spec.Name,
+			"PROJECT_DOMAIN": ci.spec.Domain,
+			"CORE_ENTITY":    ci.spec.CoreEntity,
+		},
+	}
+	
+	// Git operations MCP server
+	servers["codekeeper-git"] = map[string]interface{}{
+		"command": "node",
+		"args":    []string{"scripts/mcp/git-server.js"},
+		"env": map[string]string{
+			"PROJECT_ROOT": ".",
+		},
+	}
+	
+	// Domain-specific MCP server
+	if domainServer := ci.getDomainMCPServer(); domainServer != nil {
+		servers["codekeeper-domain"] = domainServer
+	}
+	
+	return servers
+}
+
+// getDomainMCPServer returns domain-specific MCP server configuration
+func (ci *CursorIntegration) getDomainMCPServer() map[string]interface{} {
+	switch ci.spec.Domain {
+	case "fintech":
+		return map[string]interface{}{
+			"command": "node",
+			"args":    []string{"scripts/mcp/compliance-server.js"},
+			"env": map[string]string{
+				"COMPLIANCE_TYPE": "fintech",
+				"PCI_DSS_MODE":    "enabled",
+				"SOX_COMPLIANCE":  "enabled",
+			},
+		}
+	case "healthcare":
+		return map[string]interface{}{
+			"command": "node",
+			"args":    []string{"scripts/mcp/hipaa-server.js"},
+			"env": map[string]string{
+				"COMPLIANCE_TYPE": "healthcare",
+				"HIPAA_MODE":      "enabled",
+				"PHI_PROTECTION":  "enabled",
+			},
+		}
+	case "ecommerce":
+		return map[string]interface{}{
+			"command": "node",
+			"args":    []string{"scripts/mcp/ecommerce-server.js"},
+			"env": map[string]string{
+				"COMPLIANCE_TYPE": "ecommerce",
+				"PCI_MODE":        "enabled",
+				"GDPR_COMPLIANCE": "enabled",
+			},
+		}
+	default:
+		// For general domain, use the compliance server with general settings
+		return map[string]interface{}{
+			"command": "node",
+			"args":    []string{"scripts/mcp/compliance-server.js"},
+			"env": map[string]string{
+				"COMPLIANCE_TYPE": "general",
+			},
+		}
+	}
 }
 
 // generateCursorRules creates Cursor coding rules using proper .mdc format

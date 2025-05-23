@@ -150,7 +150,7 @@ func validateCursorConfiguration() error {
 		{"Cursor configuration directory", checkCursorDirectory},
 		{"Cursor settings file", checkCursorSettings},
 		{"Cursor rules (.mdc files)", checkCursorRules},
-		{"MCP server configuration", checkMCPConfig},
+		{"MCP configuration (.cursor/mcp.json)", checkMCPConfig},
 		{"Guard rails integration", checkGuardRailsIntegration},
 	}
 
@@ -306,23 +306,37 @@ func checkCursorRules() (bool, string) {
 }
 
 func checkMCPConfig() (bool, string) {
-	homeDir, err := os.UserHomeDir()
+	// Check for project-level MCP configuration
+	mcpConfigPath := ".cursor/mcp.json"
+	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
+		return false, "run 'codekeeper cursor setup' to create .cursor/mcp.json"
+	}
+	
+	// Verify it contains proper MCP server configuration
+	data, err := os.ReadFile(mcpConfigPath)
 	if err != nil {
-		return false, "cannot access home directory"
+		return false, "cannot read .cursor/mcp.json"
 	}
 	
-	settingsPath := filepath.Join(homeDir, ".cursor", "settings.json")
-	data, err := os.ReadFile(settingsPath)
-	if err != nil {
-		return false, "cannot read Cursor settings"
+	var mcpConfig map[string]interface{}
+	if err := json.Unmarshal(data, &mcpConfig); err != nil {
+		return false, "invalid JSON in .cursor/mcp.json"
 	}
 	
-	// Check for CodeKeeper MCP server
-	if strings.Contains(string(data), "codekeeper-guard-rails") {
-		return true, ""
+	// Check for mcpServers section
+	if servers, exists := mcpConfig["mcpServers"]; exists {
+		if serverMap, ok := servers.(map[string]interface{}); ok && len(serverMap) > 0 {
+			// Check for CodeKeeper MCP servers
+			for serverName := range serverMap {
+				if strings.Contains(serverName, "codekeeper") {
+					return true, ""
+				}
+			}
+			return false, "no CodeKeeper MCP servers found"
+		}
 	}
 	
-	return false, "CodeKeeper MCP server not configured"
+	return false, "no MCP servers configured"
 }
 
 func checkGuardRailsIntegration() (bool, string) {
@@ -384,10 +398,9 @@ func loadCustomRules() ([]string, error) {
 }
 
 func cursorConfigExists() bool {
-	homeDir, _ := os.UserHomeDir()
-	settingsPath := filepath.Join(homeDir, ".cursor", "settings.json")
-	
-	if data, err := os.ReadFile(settingsPath); err == nil {
+	// Check for project-level MCP configuration
+	mcpConfigPath := ".cursor/mcp.json"
+	if data, err := os.ReadFile(mcpConfigPath); err == nil {
 		return strings.Contains(string(data), "codekeeper")
 	}
 	

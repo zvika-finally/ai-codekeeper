@@ -98,7 +98,7 @@ This project includes MCP servers that provide AI assistants with project contex
    ` + "```" + `
 
 2. **Configure Cursor IDE**
-   - The MCP configuration is automatically added to ` + "`.cursor/mcp_settings.json`" + `
+   - The MCP configuration is automatically added to ` + "`.cursor/mcp.json`" + `
    - Restart Cursor to load the MCP servers
 
 3. **Configure VS Code**
@@ -208,7 +208,7 @@ To create a new MCP server:
 
 1. Create a new JavaScript file in this directory
 2. Implement the MCP server interface
-3. Add configuration to ` + "`.cursor/mcp_settings.json`" + `
+3. Add configuration to ` + "`.cursor/mcp.json`" + `
 4. Test the server with your AI assistant
 
 ## Dependencies

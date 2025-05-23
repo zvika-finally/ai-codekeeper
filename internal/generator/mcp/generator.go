@@ -61,7 +61,7 @@ func (mg *MCPGenerator) generateCursorMCPConfig(files map[string]string) {
 	}
 	
 	configJSON, _ := json.MarshalIndent(config, "", "  ")
-	files[".cursor/mcp_settings.json"] = string(configJSON)
+	files[".cursor/mcp.json"] = string(configJSON)
 	
 	// Also create VS Code settings for MCP
 	files[".vscode/settings.json"] = mg.generateVSCodeMCPSettings()
