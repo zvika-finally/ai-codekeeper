@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -75,6 +77,19 @@ func setupEnvironment() error {
 		color.Yellow("⚠️  Not in a git repository. Consider running 'git init' first.")
 	}
 
+	// Detect project type and configuration
+	projectInfo := detectProjectInfo()
+	if projectInfo != nil {
+		color.Cyan("📦 Detected project: %s (%s domain)", projectInfo.Name, projectInfo.Domain)
+		return setupProjectEnvironment(projectInfo)
+	}
+
+	// Fallback to generic setup
+	color.Cyan("🔧 Setting up generic development environment...")
+	return setupGenericEnvironment()
+}
+
+func setupGenericEnvironment() error {
 	// Check for common development tools
 	tools := []struct {
 		name    string
@@ -290,4 +305,308 @@ func appendToGitignore(content string) error {
 
 	_, err = file.WriteString(content)
 	return err
+}
+
+// EnvProjectInfo represents detected project information for environment setup
+type EnvProjectInfo struct {
+	Name     string `json:"name"`
+	Domain   string `json:"domain"`
+	Backend  string `json:"backend"`
+	Frontend bool   `json:"frontend"`
+}
+
+// detectProjectInfo detects if we're in a CodeKeeper-generated project
+func detectProjectInfo() *EnvProjectInfo {
+	// Check for CodeKeeper config
+	configPath := ".codekeeper/config.json"
+	if _, err := os.Stat(configPath); err == nil {
+		data, err := ioutil.ReadFile(configPath)
+		if err == nil {
+			var info EnvProjectInfo
+			if json.Unmarshal(data, &info) == nil {
+				return &info
+			}
+		}
+	}
+
+	// Check for project structure patterns
+	if hasProjectStructure() {
+		return &EnvProjectInfo{
+			Name:     filepath.Base(getCurrentDir()),
+			Domain:   detectDomainFromDocs(),
+			Backend:  detectBackendType(),
+			Frontend: hasDirectory("apps/frontend"),
+		}
+	}
+
+	return nil
+}
+
+// setupProjectEnvironment sets up environment for a detected CodeKeeper project
+func setupProjectEnvironment(info *EnvProjectInfo) error {
+	color.Green("🏗️ Setting up %s environment for %s project...", info.Domain, info.Backend)
+
+	// 1. Install project dependencies
+	if err := installProjectDependencies(info); err != nil {
+		color.Yellow("⚠️  Failed to install dependencies: %v", err)
+	}
+
+	// 2. Setup Docker environment
+	if err := setupDockerEnvironment(); err != nil {
+		color.Yellow("⚠️  Failed to setup Docker environment: %v", err)
+	}
+
+	// 3. Setup MCP servers
+	if err := setupMCPServers(); err != nil {
+		color.Yellow("⚠️  Failed to setup MCP servers: %v", err)
+	}
+
+	// 4. Validate environment
+	if err := validateProjectEnvironment(info); err != nil {
+		color.Yellow("⚠️  Environment validation issues: %v", err)
+	}
+
+	// 5. Generate environment summary
+	generateEnvironmentSummary(info)
+
+	color.Green("🎉 %s project environment setup complete!", strings.Title(info.Domain))
+	return nil
+}
+
+// Helper functions
+func hasProjectStructure() bool {
+	patterns := []string{
+		"apps/backend",
+		"apps/frontend", 
+		"docs/README.md",
+		"infra/aws",
+		"scripts/mcp",
+	}
+
+	for _, pattern := range patterns {
+		if _, err := os.Stat(pattern); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func detectDomainFromDocs() string {
+	// Check for domain-specific docs
+	domainFiles := map[string]string{
+		"fintech":    "docs/frontend/FINTECH_PATTERNS.md",
+		"healthcare": "docs/frontend/HEALTHCARE_PATTERNS.md", 
+		"ecommerce":  "docs/frontend/ECOMMERCE_PATTERNS.md",
+	}
+
+	for domain, file := range domainFiles {
+		if _, err := os.Stat(file); err == nil {
+			return domain
+		}
+	}
+	return "generic"
+}
+
+func detectBackendType() string {
+	if _, err := os.Stat("apps/backend/package.json"); err == nil {
+		return "javascript"
+	}
+	if _, err := os.Stat("apps/backend/go.mod"); err == nil {
+		return "go"
+	}
+	if _, err := os.Stat("apps/backend/requirements.txt"); err == nil {
+		return "python"
+	}
+	return "unknown"
+}
+
+func hasDirectory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+func getCurrentDir() string {
+	wd, _ := os.Getwd()
+	return wd
+}
+
+func installProjectDependencies(info *EnvProjectInfo) error {
+	color.Cyan("📦 Installing project dependencies...")
+
+	// Install backend dependencies
+	if info.Backend == "javascript" {
+		if err := runCommand("npm install", "apps/backend"); err != nil {
+			return fmt.Errorf("backend npm install failed: %w", err)
+		}
+		color.Green("✓ Backend dependencies installed")
+	}
+
+	// Install frontend dependencies
+	if info.Frontend {
+		if err := runCommand("npm install", "apps/frontend"); err != nil {
+			return fmt.Errorf("frontend npm install failed: %w", err)
+		}
+		color.Green("✓ Frontend dependencies installed")
+	}
+
+	// Install MCP dependencies
+	if _, err := os.Stat("scripts/mcp/package.json"); err == nil {
+		if err := runCommand("npm install", "scripts/mcp"); err != nil {
+			return fmt.Errorf("MCP npm install failed: %w", err)
+		}
+		color.Green("✓ MCP dependencies installed")
+	}
+
+	return nil
+}
+
+func setupDockerEnvironment() error {
+	color.Cyan("🐳 Setting up Docker environment...")
+
+	// Check if docker-compose.yml exists
+	if _, err := os.Stat("docker-compose.yml"); err != nil {
+		return fmt.Errorf("docker-compose.yml not found")
+	}
+
+	// Pull Docker images
+	if err := runCommand("docker-compose pull", "."); err != nil {
+		color.Yellow("⚠️  Failed to pull Docker images: %v", err)
+	} else {
+		color.Green("✓ Docker images updated")
+	}
+
+	// Create .env file from example if it doesn't exist
+	if _, err := os.Stat(".env"); err != nil {
+		if _, err := os.Stat(".env.example"); err == nil {
+			if err := copyFile(".env.example", ".env"); err == nil {
+				color.Green("✓ Created .env from .env.example")
+			}
+		}
+	}
+
+	return nil
+}
+
+func setupMCPServers() error {
+	color.Cyan("🔧 Setting up MCP servers...")
+
+	mcpDir := "scripts/mcp"
+	if _, err := os.Stat(mcpDir); err != nil {
+		return fmt.Errorf("MCP directory not found")
+	}
+
+	// Make MCP servers executable
+	mcpFiles := []string{"git-server.js", "project-server.js"}
+	
+	// Add domain-specific MCP servers
+	domainFiles := map[string]string{
+		"compliance-server.js": "fintech",
+		"hipaa-server.js":      "healthcare", 
+		"ecommerce-server.js":  "ecommerce",
+	}
+
+	for file, _ := range domainFiles {
+		mcpPath := filepath.Join(mcpDir, file)
+		if _, err := os.Stat(mcpPath); err == nil {
+			mcpFiles = append(mcpFiles, file)
+		}
+	}
+
+	for _, file := range mcpFiles {
+		mcpPath := filepath.Join(mcpDir, file)
+		if _, err := os.Stat(mcpPath); err == nil {
+			os.Chmod(mcpPath, 0755)
+		}
+	}
+
+	color.Green("✓ MCP servers configured")
+	return nil
+}
+
+func validateProjectEnvironment(info *EnvProjectInfo) error {
+	color.Cyan("✅ Validating environment...")
+
+	issues := []string{}
+
+	// Check Docker
+	if _, err := exec.LookPath("docker"); err != nil {
+		issues = append(issues, "Docker not installed")
+	}
+
+	// Check Node.js for JavaScript projects
+	if info.Backend == "javascript" || info.Frontend {
+		if _, err := exec.LookPath("node"); err != nil {
+			issues = append(issues, "Node.js not installed")
+		}
+	}
+
+	// Check domain-specific requirements
+	switch info.Domain {
+	case "fintech":
+		// Check for compliance tools
+		if _, err := os.Stat("scripts/mcp/compliance-server.js"); err != nil {
+			issues = append(issues, "Fintech compliance MCP server missing")
+		}
+	case "healthcare":
+		// Check for HIPAA tools
+		if _, err := os.Stat("scripts/mcp/hipaa-server.js"); err != nil {
+			issues = append(issues, "Healthcare HIPAA MCP server missing")
+		}
+	}
+
+	if len(issues) > 0 {
+		color.Yellow("⚠️  Environment issues found:")
+		for _, issue := range issues {
+			fmt.Printf("  - %s\n", issue)
+		}
+		return fmt.Errorf("%d environment issues", len(issues))
+	}
+
+	color.Green("✓ Environment validation passed")
+	return nil
+}
+
+func generateEnvironmentSummary(info *EnvProjectInfo) {
+	color.Cyan("\n📋 Environment Summary:")
+	fmt.Printf("  Project: %s\n", info.Name)
+	fmt.Printf("  Domain: %s\n", info.Domain)
+	fmt.Printf("  Backend: %s\n", info.Backend)
+	fmt.Printf("  Frontend: %t\n", info.Frontend)
+	
+	color.Cyan("\n🚀 Quick Start Commands:")
+	fmt.Printf("  Development: docker-compose up\n")
+	fmt.Printf("  Backend: cd apps/backend && npm run dev\n")
+	if info.Frontend {
+		fmt.Printf("  Frontend: cd apps/frontend && npm run dev\n")
+	}
+	fmt.Printf("  Health Check: ./scripts/health-check.sh\n")
+	
+	color.Cyan("\n🔧 MCP Servers:")
+	fmt.Printf("  Git: cd scripts/mcp && npm run start:git\n")
+	fmt.Printf("  Project: cd scripts/mcp && npm run start:project\n")
+	
+	switch info.Domain {
+	case "fintech":
+		fmt.Printf("  Compliance: cd scripts/mcp && npm run start:compliance\n")
+	case "healthcare":
+		fmt.Printf("  HIPAA: cd scripts/mcp && npm run start:hipaa\n")
+	case "ecommerce":
+		fmt.Printf("  E-commerce: cd scripts/mcp && npm run start:ecommerce\n")
+	}
+}
+
+// Helper functions
+func runCommand(command, dir string) error {
+	parts := strings.Fields(command)
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Dir = dir
+	return cmd.Run()
+}
+
+func copyFile(src, dst string) error {
+	data, err := ioutil.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(dst, data, 0644)
 }

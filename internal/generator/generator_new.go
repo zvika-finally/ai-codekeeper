@@ -11,6 +11,7 @@ import (
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/frontend"
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/infrastructure"
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/mcp"
+	"github.com/zvika-finally/ai-codekeeper/internal/generator/tests"
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/tooling"
 )
 
@@ -182,6 +183,27 @@ func (g *NewModularGenerator) generateFileComponents() error {
 		allFiles[path] = content
 	}
 
+	// Generate comprehensive test suite
+	testGen := tests.NewTestGenerator(&tests.ProjectSpec{
+		Name:        g.spec.Name,
+		Description: g.spec.Description,
+		CoreEntity:  g.spec.CoreEntity,
+		Backend:     g.spec.Backend,
+		Databases:   g.spec.Databases,
+		APIStyle:    g.spec.APIStyle,
+		UserRoles:   g.spec.UserRoles,
+		Domain:      g.spec.Domain,
+		ProjectPath: g.spec.ProjectPath,
+	})
+	
+	testFiles, err := testGen.Generate()
+	if err != nil {
+		return fmt.Errorf("failed to generate test files: %w", err)
+	}
+	for path, content := range testFiles {
+		allFiles[path] = content
+	}
+
 	// Generate enhanced Cursor IDE integration
 	cursorGen := NewCursorIntegration(g.spec)
 	cursorConfigs, err := cursorGen.Generate()
@@ -191,6 +213,19 @@ func (g *NewModularGenerator) generateFileComponents() error {
 	for path, content := range cursorConfigs {
 		allFiles[path] = content
 	}
+
+	// Generate CodeKeeper project configuration
+	projectConfig := map[string]interface{}{
+		"name":     g.spec.Name,
+		"domain":   g.spec.Domain,
+		"backend":  g.spec.Backend,
+		"frontend": true,
+		"version":  "1.0.0",
+		"created":  time.Now().Format(time.RFC3339),
+		"generator": "modular",
+	}
+	configJSON, _ := json.MarshalIndent(projectConfig, "", "  ")
+	allFiles[".codekeeper/config.json"] = string(configJSON)
 
 	// Write all files
 	for filePath, content := range allFiles {
