@@ -355,7 +355,7 @@ func detectProjectInfo() *EnvProjectInfo {
 			Name:     filepath.Base(getCurrentDir()),
 			Domain:   detectDomainFromDocs(),
 			Backend:  detectBackendType(),
-			Frontend: hasDirectory("apps/frontend"),
+			Frontend: detectFrontendProject(),
 		}
 	}
 
@@ -445,6 +445,56 @@ func hasDirectory(path string) bool {
 	return err == nil && info.IsDir()
 }
 
+func detectFrontendProject() bool {
+	// Check for frontend directories with package.json
+	frontendPaths := []string{"apps/frontend", "frontend", "client", "web", "ui"}
+	for _, path := range frontendPaths {
+		if _, err := os.Stat(filepath.Join(path, "package.json")); err == nil {
+			return true
+		}
+	}
+	
+	// Check for frontend-specific files in root
+	frontendFiles := []string{"package.json", "yarn.lock", "pnpm-lock.yaml"}
+	for _, file := range frontendFiles {
+		if _, err := os.Stat(file); err == nil {
+			// Check if it's a frontend project by looking for frontend dependencies
+			if isRootFrontendProject(file) {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
+func isRootFrontendProject(packageFile string) bool {
+	if packageFile != "package.json" {
+		return false
+	}
+	
+	data, err := os.ReadFile(packageFile)
+	if err != nil {
+		return false
+	}
+	
+	content := string(data)
+	// Check for common frontend frameworks/tools
+	frontendIndicators := []string{
+		"react", "vue", "angular", "svelte", "next", "nuxt", "gatsby",
+		"webpack", "vite", "parcel", "rollup", "@types/react", "typescript",
+		"tailwindcss", "sass", "less", "styled-components",
+	}
+	
+	for _, indicator := range frontendIndicators {
+		if strings.Contains(content, indicator) {
+			return true
+		}
+	}
+	
+	return false
+}
+
 func getCurrentDir() string {
 	wd, _ := os.Getwd()
 	return wd
@@ -468,14 +518,22 @@ func installProjectDependencies(info *EnvProjectInfo) error {
 
 	// Install frontend dependencies
 	if info.Frontend {
-		frontendPath := "apps/frontend"
-		if _, err := os.Stat(filepath.Join(frontendPath, "package.json")); err == nil {
-			if err := runCommand("npm install", frontendPath); err != nil {
-				return fmt.Errorf("frontend npm install failed: %w", err)
+		frontendPaths := []string{"apps/frontend", "frontend", "client", "web", "ui"}
+		installed := false
+		
+		for _, frontendPath := range frontendPaths {
+			if _, err := os.Stat(filepath.Join(frontendPath, "package.json")); err == nil {
+				if err := runCommand("npm install", frontendPath); err != nil {
+					return fmt.Errorf("frontend npm install failed: %w", err)
+				}
+				color.Green("✓ Frontend dependencies installed from %s", frontendPath)
+				installed = true
+				break
 			}
-			color.Green("✓ Frontend dependencies installed")
-		} else {
-			color.Yellow("⚠️  Frontend package.json not found, skipping frontend dependencies")
+		}
+		
+		if !installed {
+			color.Yellow("⚠️  Frontend package.json not found in common locations, skipping frontend dependencies")
 		}
 	}
 
