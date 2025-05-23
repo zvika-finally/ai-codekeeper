@@ -9,6 +9,8 @@ import (
 
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/backend"
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/frontend"
+	"github.com/zvika-finally/ai-codekeeper/internal/generator/infrastructure"
+	"github.com/zvika-finally/ai-codekeeper/internal/generator/mcp"
 	"github.com/zvika-finally/ai-codekeeper/internal/generator/tooling"
 )
 
@@ -135,6 +137,58 @@ func (g *NewModularGenerator) generateFileComponents() error {
 		return fmt.Errorf("failed to generate infrastructure guidelines: %w", err)
 	}
 	for path, content := range infraFiles {
+		allFiles[path] = content
+	}
+
+	// Generate actual infrastructure configurations
+	infraGen := infrastructure.NewInfrastructureGenerator(&infrastructure.ProjectSpec{
+		Name:        g.spec.Name,
+		Description: g.spec.Description,
+		CoreEntity:  g.spec.CoreEntity,
+		Backend:     g.spec.Backend,
+		Databases:   g.spec.Databases,
+		APIStyle:    g.spec.APIStyle,
+		UserRoles:   g.spec.UserRoles,
+		Domain:      g.spec.Domain,
+		ProjectPath: g.spec.ProjectPath,
+	})
+	
+	infraConfigs, err := infraGen.Generate()
+	if err != nil {
+		return fmt.Errorf("failed to generate infrastructure configs: %w", err)
+	}
+	for path, content := range infraConfigs {
+		allFiles[path] = content
+	}
+
+	// Generate MCP server configurations
+	mcpGen := mcp.NewMCPGenerator(&mcp.ProjectSpec{
+		Name:        g.spec.Name,
+		Description: g.spec.Description,
+		CoreEntity:  g.spec.CoreEntity,
+		Backend:     g.spec.Backend,
+		Databases:   g.spec.Databases,
+		APIStyle:    g.spec.APIStyle,
+		UserRoles:   g.spec.UserRoles,
+		Domain:      g.spec.Domain,
+		ProjectPath: g.spec.ProjectPath,
+	})
+	
+	mcpConfigs, err := mcpGen.Generate()
+	if err != nil {
+		return fmt.Errorf("failed to generate MCP configs: %w", err)
+	}
+	for path, content := range mcpConfigs {
+		allFiles[path] = content
+	}
+
+	// Generate enhanced Cursor IDE integration
+	cursorGen := NewCursorIntegration(g.spec)
+	cursorConfigs, err := cursorGen.Generate()
+	if err != nil {
+		return fmt.Errorf("failed to generate Cursor configs: %w", err)
+	}
+	for path, content := range cursorConfigs {
 		allFiles[path] = content
 	}
 
